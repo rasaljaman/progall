@@ -15,12 +15,15 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const fetchImages = async () => {
+      setLoading(true); // Ensure loading is true when we start
       try {
         const data = await supabaseService.getImages();
         setImages(data);
       } catch (error) {
         console.error('Error fetching images:', error);
       } finally {
+        // Optional: Add a small delay if you want to test the look of the skeletons
+        // await new Promise(resolve => setTimeout(resolve, 800)); 
         setLoading(false);
       }
     };
@@ -47,12 +50,10 @@ const Home: React.FC = () => {
 
     // Sort
     if (sortOption === 'newest') {
-        // Mock created_at sort if string dates are present, else id
         result.sort((a, b) => (b.created_at || b.id).localeCompare(a.created_at || a.id));
     } else if (sortOption === 'oldest') {
         result.sort((a, b) => (a.created_at || a.id).localeCompare(b.created_at || b.id));
     }
-    // "popular" would require a like count, omitting for simple demo logic
 
     return result;
   }, [images, searchQuery, selectedCategory, sortOption]);
@@ -62,17 +63,20 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-10">
-      {/* Carousel Section */}
-      <section className="mb-6">
-        <Carousel images={featuredImages} />
-      </section>
+      {/* Carousel Section - Only show if not loading and we have images */}
+      {/* If you want a skeleton for this too, we can add it later. For now, hide during load. */}
+      {!loading && featuredImages.length > 0.5 && (
+        <section className="mb-6">
+          <Carousel images={featuredImages} />
+        </section>
+      )}
 
       {/* Controls Section */}
       <section className="sticky top-16 z-40 bg-background/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between">
           
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
-             {/* Filter Dropdown (Simplified as buttons for better UX on mobile) */}
+             {/* Filter Dropdown */}
              <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
                 <Filter size={16} className="ml-2 mr-2 text-textSecondary"/>
                 <select 
@@ -118,13 +122,8 @@ const Home: React.FC = () => {
 
       {/* Gallery Section */}
       <section className="max-w-7xl mx-auto min-h-[50vh]">
-        {loading ? (
-            <div className="flex justify-center items-center h-40">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
-            </div>
-        ) : (
-            <GalleryGrid images={filteredImages} />
-        )}
+        {/* Pass the loading state to the Grid instead of conditionally rendering */}
+        <GalleryGrid images={filteredImages} loading={loading} />
       </section>
     </div>
   );
