@@ -8,6 +8,7 @@ export interface ImageItem {
   width: number;
   height: number;
   created_at?: string;
+  is_featured?: boolean;
 }
 
 export type SortOption = 'newest' | 'oldest' | 'popular';

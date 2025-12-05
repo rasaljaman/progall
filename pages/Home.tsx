@@ -15,21 +15,32 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const fetchImages = async () => {
-      setLoading(true); // Ensure loading is true when we start
+      setLoading(true);
       try {
         const data = await supabaseService.getImages();
         setImages(data);
       } catch (error) {
         console.error('Error fetching images:', error);
       } finally {
-        // Optional: Add a small delay if you want to test the look of the skeletons
-        // await new Promise(resolve => setTimeout(resolve, 800)); 
         setLoading(false);
       }
     };
     fetchImages();
   }, []);
 
+  // 1. LOGIC UPDATE: Determine which images go to the Slider
+  const featuredImages = useMemo(() => {
+    // Try to find images explicitly marked as "Featured" in Admin
+    const featured = images.filter(img => img.is_featured === true);
+    
+    // If we have featured images, show them. Otherwise, fallback to the newest 5.
+    if (featured.length > 0) {
+      return featured;
+    }
+    return images.slice(0, 5);
+  }, [images]);
+
+  // 2. Filter Logic (Preserved)
   const filteredImages = useMemo(() => {
     let result = [...images];
 
@@ -58,20 +69,25 @@ const Home: React.FC = () => {
     return result;
   }, [images, searchQuery, selectedCategory, sortOption]);
 
-  // Featured images for carousel (take first 5)
-  const featuredImages = images.slice(0, 5);
-
   return (
     <div className="min-h-screen pb-10">
-      {/* Carousel Section - Only show if not loading and we have images */}
-      {/* If you want a skeleton for this too, we can add it later. For now, hide during load. */}
-      {!loading && featuredImages.length > 0.5 && (
-        <section className="mb-6">
-          <Carousel images={featuredImages} />
-        </section>
-      )}
+      
+      {/* 3. UI UPDATE: Carousel Section with Skeleton */}
+      <section className="mb-6">
+        {loading ? (
+          /* Loading State: Gray pulsing box */
+          <div className="max-w-6xl mx-auto px-4 mt-6">
+            <div className="w-full h-64 md:h-96 bg-surfaceHighlight rounded-2xl animate-pulse border border-white/5 shadow-xl"></div>
+          </div>
+        ) : (
+          /* Success State: Show Carousel if we have images */
+          featuredImages.length > 0 && (
+            <Carousel images={featuredImages} />
+          )
+        )}
+      </section>
 
-      {/* Controls Section */}
+      {/* Controls Section (Preserved Your Layout) */}
       <section className="sticky top-16 z-40 bg-background/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between">
           
@@ -122,7 +138,6 @@ const Home: React.FC = () => {
 
       {/* Gallery Section */}
       <section className="max-w-7xl mx-auto min-h-[50vh]">
-        {/* Pass the loading state to the Grid instead of conditionally rendering */}
         <GalleryGrid images={filteredImages} loading={loading} />
       </section>
     </div>
