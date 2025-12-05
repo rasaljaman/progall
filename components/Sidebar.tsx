@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Home, Upload, Settings, LogOut, Grid } from 'lucide-react';
+import { X, Home, Upload, LogOut, Grid, FileText, Shield, Mail } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
@@ -12,15 +12,15 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onLogout }) => {
   const location = useLocation();
 
-  const navItems = [
-    { icon: <Home size={20} />, label: 'Home', path: '/' },
-    ...(isAuthenticated ? [
-      { icon: <Grid size={20} />, label: 'Dashboard', path: '/admin/dashboard' },
-      { icon: <Upload size={20} />, label: 'Upload New', path: '/admin/dashboard' }, // Shortcut
-    ] : [
-      { icon: <Settings size={20} />, label: 'Admin Login', path: '/admin/login' }
-    ]),
-  ];
+  const isActive = (path: string) => location.pathname === path;
+  
+  // Helper class to keep code clean
+  const linkClass = (path: string) => 
+    `flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
+      isActive(path)
+        ? 'bg-accent/10 text-accent font-medium'
+        : 'text-textSecondary hover:bg-surfaceHighlight hover:text-white'
+    }`;
 
   return (
     <>
@@ -32,13 +32,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
         onClick={onClose}
       />
 
-      {/* Sidebar Panel */}
+      {/* Sidebar Panel (Right Side) */}
       <aside
         className={`fixed top-0 right-0 z-[70] h-full w-72 bg-surface shadow-2xl transform transition-transform duration-300 ease-in-out border-l border-surfaceHighlight ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
+          {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-surfaceHighlight">
             <span className="text-lg font-bold text-white">Menu</span>
             <button
@@ -49,24 +50,56 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
             </button>
           </div>
 
+          {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.path + item.label}
-                to={item.path}
-                onClick={onClose}
-                className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  location.pathname === item.path
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-textSecondary hover:bg-surfaceHighlight hover:text-white'
-                }`}
-              >
-                {item.icon}
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            ))}
+            
+            {/* 1. Main Navigation */}
+            <Link to="/" onClick={onClose} className={linkClass('/')}>
+              <Home size={20} />
+              <span>Home</span>
+            </Link>
+
+            {/* 2. Admin Navigation (Only if Logged In) */}
+            {isAuthenticated && (
+              <>
+                <div className="my-2 border-t border-surfaceHighlight/50 mx-2"></div>
+                <p className="px-4 text-xs font-semibold text-accent uppercase tracking-wider mb-1 mt-4">Admin Panel</p>
+                
+                <Link to="/admin/dashboard" onClick={onClose} className={linkClass('/admin/dashboard')}>
+                  <Grid size={20} />
+                  <span>Dashboard</span>
+                </Link>
+                
+                {/* Visual shortcut for upload, goes to same dash for now */}
+                <Link to="/admin/dashboard" onClick={onClose} className={linkClass('/admin/upload')}>
+                  <Upload size={20} />
+                  <span>Upload New</span>
+                </Link>
+              </>
+            )}
+
+            {/* 3. Legal & Help Section (Always Visible) */}
+            <div className="my-4 border-t border-surfaceHighlight/50 mx-2"></div>
+            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Legal & Help</p>
+
+            <Link to="/terms" onClick={onClose} className={linkClass('/terms')}>
+              <FileText size={20} />
+              <span>Terms of Use</span>
+            </Link>
+
+            <Link to="/privacy" onClick={onClose} className={linkClass('/privacy')}>
+              <Shield size={20} />
+              <span>Privacy Policy</span>
+            </Link>
+
+            <Link to="/contact" onClick={onClose} className={linkClass('/contact')}>
+              <Mail size={20} />
+              <span>Contact Us</span>
+            </Link>
+
           </div>
 
+          {/* Footer / Logout Area */}
           {isAuthenticated && (
             <div className="p-4 border-t border-surfaceHighlight">
               <button

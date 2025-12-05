@@ -6,6 +6,14 @@ import Home from './pages/Home';
 import ImageDetail from './pages/ImageDetail';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import Footer from './components/Footer';
+
+// Import the new Legal/Support pages
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Contact from './pages/Contact';
+import About from './pages/About';
+
 import { supabase, supabaseService } from './services/supabaseService';
 
 const App: React.FC = () => {
@@ -51,7 +59,7 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-background text-textPrimary font-sans selection:bg-accent selection:text-black">
+      <div className="flex flex-col min-h-screen bg-background text-textPrimary font-sans selection:bg-accent selection:text-black">
         <Navbar onToggleSidebar={toggleSidebar} />
         <Sidebar 
             isOpen={isSidebarOpen} 
@@ -60,10 +68,17 @@ const App: React.FC = () => {
             onLogout={handleLogout}
         />
 
-        <main className="relative z-0">
+        <main className="relative z-0 flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/image/:id" element={<ImageDetail />} />
+            
+            {/* New Public Routes for Phase 1 */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/about" element={<About />} />
+
             <Route 
                 path="/admin/login" 
                 element={
@@ -80,6 +95,7 @@ const App: React.FC = () => {
             />
           </Routes>
         </main>
+        <Footer />
       </div>
     </Router>
   );
