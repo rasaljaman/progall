@@ -16,38 +16,71 @@ const ImageDetail: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // 1. Fetch Image, Related Data & Check Admin Status
+  // --- 1. SCROLL TO TOP (Fixes issue where page stays at bottom on navigation) ---
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  // --- 2. FETCH DATA & SMART SORT ---
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       if (!id) return;
 
-      // A. Get Image Details
-      const { data, error } = await supabase
+      // A. Get Current Image
+      const { data: currentImg, error } = await supabase
         .from('images')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (error || !data) {
+      if (error || !currentImg) {
         console.error('Error fetching image:', error);
-        navigate('/'); // Go back home if not found
+        navigate('/'); 
         return;
       }
 
-      setImage(data);
+      setImage(currentImg);
 
-      // B. Get Related Images (Same Category, exclude current)
-      const { data: related } = await supabase
+      // B. SMART SORT ALGORITHM for Related Images
+      // Fetch a pool of images (limit 100) to rank them
+      const { data: allImages } = await supabase
         .from('images')
         .select('*')
-        .eq('category', data.category)
-        .neq('id', data.id)
-        .limit(4);
-      
-      if (related) setRelatedImages(related);
+        .neq('id', currentImg.id) // Exclude the image we are looking at
+        .limit(100);
 
-      // C. Check if user is Admin
+      if (allImages) {
+        // Calculate a "Relevance Score" for each image
+        const rankedImages = allImages.map(img => {
+          let score = 0;
+
+          // Priority 1: Category Match (+10 points)
+          if (img.category === currentImg.category) score += 10;
+
+          // Priority 2: Tag Overlap (+3 points per shared tag)
+          const sharedTags = img.tags.filter(tag => currentImg.tags.includes(tag));
+          score += (sharedTags.length * 3);
+
+          // Priority 3: Word Match (+1 point per shared word > 3 letters)
+          const currentWords = currentImg.prompt.toLowerCase().split(/\s+/);
+          const imgWords = img.prompt.toLowerCase().split(/\s+/);
+          const sharedWords = imgWords.filter(w => currentWords.includes(w) && w.length > 3);
+          score += sharedWords.length;
+
+          // Return image with its calculated score
+          return { ...img, relevanceScore: score };
+        });
+
+        // Sort by Score (Highest first) and take the top 8
+        const sorted = rankedImages
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .slice(0, 8);
+
+        setRelatedImages(sorted);
+      }
+
+      // C. Check Admin Status
       const { data: { session } } = await supabase.auth.getSession();
       setIsAdmin(!!session);
 
@@ -57,7 +90,7 @@ const ImageDetail: React.FC = () => {
     fetchData();
   }, [id, navigate]);
 
-  // 2. Button Handlers
+  // --- HANDLERS ---
   const handleCopy = () => {
     if (image) {
       navigator.clipboard.writeText(image.prompt);
@@ -69,9 +102,11 @@ const ImageDetail: React.FC = () => {
     if (image) {
       try {
         await navigator.clipboard.writeText(image.prompt);
+        // Wait for clipboard write before opening tab
         window.open('https://gemini.google.com/app', '_blank');
       } catch (err) {
         console.error('Failed to copy:', err);
+        // Open anyway if copy fails
         window.open('https://gemini.google.com/app', '_blank');
       }
     }
@@ -94,7 +129,6 @@ const ImageDetail: React.FC = () => {
   };
 
   const handleSaveEdit = async (updatedImage: ImageItem) => {
-    // Save to DB
     const { error } = await supabase
       .from('images')
       .update({
@@ -106,7 +140,7 @@ const ImageDetail: React.FC = () => {
       .eq('id', updatedImage.id);
 
     if (!error) {
-      setImage(updatedImage); // Update UI
+      setImage(updatedImage); 
     }
   };
 
@@ -152,7 +186,7 @@ const ImageDetail: React.FC = () => {
               />
             </div>
             
-            {/* Admin Edit Shortcut (Only visible if logged in) */}
+            {/* Admin Edit Shortcut */}
             {isAdmin && (
               <button 
                 onClick={() => setIsEditModalOpen(true)}
@@ -249,17 +283,17 @@ const ImageDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Related Images Section */}
+        {/* Related Images Section (Smart Sorted) */}
         {relatedImages.length > 0 && (
           <div className="mt-20 border-t border-surfaceHighlight pt-10">
-            <h2 className="text-2xl font-bold text-white mb-8">More from {image.category}</h2>
+            <h2 className="text-2xl font-bold text-white mb-8">Related to this style</h2>
             <GalleryGrid images={relatedImages} />
           </div>
         )}
 
       </div>
 
-      {/* Edit Modal (Hidden unless Admin clicks Edit) */}
+      {/* Edit Modal */}
       {isAdmin && image && (
         <EditImageModal 
           image={image} 
