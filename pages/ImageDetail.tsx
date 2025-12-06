@@ -80,14 +80,22 @@ const ImageDetail: React.FC = () => {
     }
   };
   
-  const handleGeminiRemix = async () => {
+  // --- FIXED REMIX FUNCTION ---
+  const handleGeminiRemix = () => {
     if (image) {
-      try {
-        await navigator.clipboard.writeText(image.prompt);
-        window.open('https://gemini.google.com/app', '_blank');
-      } catch (err) {
-        window.open('https://gemini.google.com/app', '_blank');
-      }
+      // 1. Open the tab IMMEDIATELY (Bypasses pop-up blocker)
+      const newTab = window.open('https://gemini.google.com/app', '_blank');
+
+      // 2. Copy to clipboard in the background
+      navigator.clipboard.writeText(image.prompt)
+        .then(() => {
+           // Optional: You can alert if you want, but it interrupts flow
+           // console.log("Copied successfully");
+        })
+        .catch((err) => {
+           console.error("Copy failed", err);
+           if(newTab) alert("Please copy the prompt manually.");
+        });
     }
   };
 
@@ -136,7 +144,6 @@ const ImageDetail: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4">
         
         {/* Back Button */}
-        {/* FIX: Changed hover:text-white to hover:text-textPrimary */}
         <button 
           onClick={() => navigate('/')} 
           className="flex items-center gap-2 text-textSecondary hover:text-textPrimary mb-6 transition-colors"
@@ -161,12 +168,10 @@ const ImageDetail: React.FC = () => {
           <div className="space-y-6">
             <div>
               <span className="text-accent text-sm font-bold uppercase">{image.category}</span>
-              {/* FIX: Changed text-white to text-textPrimary */}
               <h1 className="text-3xl font-bold text-textPrimary mt-1">Prompt Details</h1>
             </div>
 
             <div className="bg-surface p-6 rounded-xl border border-surfaceHighlight group relative">
-              {/* FIX: Changed text-gray-200 to text-textPrimary */}
               <p className="text-textPrimary text-lg font-light leading-relaxed">{image.prompt}</p>
               <button onClick={handleCopy} className="absolute top-4 right-4 p-2 bg-black/5 rounded hover:bg-accent hover:text-white opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity"><Copy size={16} className="text-textSecondary"/></button>
             </div>
@@ -175,7 +180,7 @@ const ImageDetail: React.FC = () => {
               <button onClick={handleGeminiRemix} className="col-span-full py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg">
                 <Sparkles size={20}/> Remix on Gemini
               </button>
-              {/* FIX: Added text-textPrimary to secondary buttons */}
+              
               <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
                 <Share2 size={18}/> Share
               </button>
@@ -186,7 +191,6 @@ const ImageDetail: React.FC = () => {
 
             <div className="flex flex-wrap gap-2">
               {image.tags.map((tag, i) => (
-                // FIX: Changed text-gray-400 to text-textSecondary
                 <span key={i} className="px-3 py-1 bg-surfaceHighlight rounded-lg text-sm text-textPrimary/70">#{tag}</span>
               ))}
             </div>
@@ -196,7 +200,6 @@ const ImageDetail: React.FC = () => {
         {/* Related Images */}
         {relatedImages.length > 0 && (
           <div className="mt-20 border-t border-surfaceHighlight pt-10">
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h2 className="text-2xl font-bold text-textPrimary mb-8">Related to this style</h2>
             <GalleryGrid images={relatedImages} />
           </div>
