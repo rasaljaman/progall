@@ -4,7 +4,7 @@ const About: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
       <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">Unleashing Creativity</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-6">Unleashing Creativity</h1>
         <p className="text-xl text-textSecondary max-w-2xl mx-auto">
           ProGall is more than just a gallery. It's a curated collection of AI-driven imagination, designed to inspire your next masterpiece.
         </p>

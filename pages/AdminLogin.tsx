@@ -28,7 +28,7 @@ const AdminLogin: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <div className="w-full max-w-md bg-surface p-8 rounded-2xl shadow-neumorphic border border-surfaceHighlight">
-        <h2 className="text-2xl font-bold text-white text-center mb-2">Admin Access</h2>
+        <h2 className="text-2xl font-bold text-primary text-center mb-2">Admin Access</h2>
         <p className="text-textSecondary text-center mb-8 text-sm">Enter your credentials to manage gallery</p>
 
         {error && (
@@ -44,7 +44,9 @@ const AdminLogin: React.FC = () => {
                     type="email" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
+                    className="w-full bg-background border
+                    border-surfaceHighlight rounded-lg p-3 text-primary focus:border-accent focus:ring-1 focus:ring-accent
+                    outline-none transition-all"
                     placeholder="admin@progall.com"
                     required
                 />
@@ -55,7 +57,10 @@ const AdminLogin: React.FC = () => {
                     type="password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
+                    className="w-full bg-background border
+                    border-surfaceHighlight rounded-lg p-3
+                    text-primary focus:border-accent focus:ring-1 focus:ring-accent
+                    outline-none transition-all"
                     placeholder="••••••••"
                     required
                 />

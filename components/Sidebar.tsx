@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Home, Upload, LogOut, Grid, FileText, Shield, Mail } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Home, Upload, LogOut, Grid, FileText, Shield, Mail, Sun, Moon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
@@ -11,15 +11,45 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onLogout }) => {
   const location = useLocation();
+  
+  // 1. THEME STATE
+  const [isDark, setIsDark] = useState(true);
+
+  // 2. CHECK PREFERENCE ON LOAD
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    // Default to dark unless user explicitly chose light
+    if (savedTheme === 'light') {
+      setIsDark(false);
+      document.documentElement.classList.remove('dark');
+    } else {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  // 3. TOGGLE FUNCTION
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
   
-  // Helper class to keep code clean
   const linkClass = (path: string) => 
     `flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
       isActive(path)
         ? 'bg-accent/10 text-accent font-medium'
-        : 'text-textSecondary hover:bg-surfaceHighlight hover:text-white'
+        : 'text-textSecondary hover:bg-surfaceHighlight hover:text-textPrimary'
     }`;
 
   return (
@@ -41,10 +71,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-surfaceHighlight">
-            <span className="text-lg font-bold text-white">Menu</span>
+            <span className="text-lg font-bold text-textPrimary">Menu</span>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-surfaceHighlight text-textSecondary hover:text-white transition-colors"
+              className="p-2 rounded-full hover:bg-surfaceHighlight text-textSecondary hover:text-textPrimary transition-colors"
             >
               <X size={20} />
             </button>
@@ -53,13 +83,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
             
+            {/* --- THEME TOGGLE BUTTON --- */}
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-surfaceHighlight/50 border border-surfaceHighlight text-textPrimary hover:bg-surfaceHighlight transition-all mb-6"
+            >
+              <div className="flex items-center gap-3">
+                {isDark ? <Moon size={20} className="text-accent" /> : <Sun size={20} className="text-accentAmber" />}
+                <span className="font-medium">{isDark ? 'Dark Mode' : 'Light Mode'}</span>
+              </div>
+              {/* Visual Switch */}
+              <div className={`w-10 h-5 rounded-full relative transition-colors ${isDark ? 'bg-accent/30' : 'bg-gray-300'}`}>
+                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${isDark ? 'left-6 bg-accent' : 'left-1'}`} />
+              </div>
+            </button>
+            
             {/* 1. Main Navigation */}
             <Link to="/" onClick={onClose} className={linkClass('/')}>
               <Home size={20} />
               <span>Home</span>
             </Link>
 
-            {/* 2. Admin Navigation (Only if Logged In) */}
+            {/* 2. Admin Navigation */}
             {isAuthenticated && (
               <>
                 <div className="my-2 border-t border-surfaceHighlight/50 mx-2"></div>
@@ -69,8 +114,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
                   <Grid size={20} />
                   <span>Dashboard</span>
                 </Link>
-                
-                {/* Visual shortcut for upload, goes to same dash for now */}
                 <Link to="/admin/dashboard" onClick={onClose} className={linkClass('/admin/upload')}>
                   <Upload size={20} />
                   <span>Upload New</span>
@@ -78,9 +121,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
               </>
             )}
 
-            {/* 3. Legal & Help Section (Always Visible) */}
+            {/* 3. Legal & Help Section */}
             <div className="my-4 border-t border-surfaceHighlight/50 mx-2"></div>
-            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Legal & Help</p>
+            <p className="px-4 text-xs font-semibold text-textSecondary uppercase tracking-wider mb-2">Legal & Help</p>
 
             <Link to="/terms" onClick={onClose} className={linkClass('/terms')}>
               <FileText size={20} />
@@ -99,7 +142,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
 
           </div>
 
-          {/* Footer / Logout Area */}
+          {/* Footer / Logout */}
           {isAuthenticated && (
             <div className="p-4 border-t border-surfaceHighlight">
               <button

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Grid, Search, Edit2 } from 'lucide-react';
-import { supabaseService, supabase } from '../services/supabaseService'; // Ensure supabase export exists
+import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem } from '../types';
 import { CATEGORIES } from '../constants';
 import EditImageModal from '../components/EditImageModal';
@@ -25,7 +25,6 @@ const AdminDashboard: React.FC = () => {
   // --- 1. FETCH DATA ---
   const loadImages = async () => {
     setLoading(true);
-    // We use the service, but ensure it fetches the new 'is_featured' column
     const data = await supabaseService.getImages();
     setImages(data);
     setLoading(false);
@@ -55,14 +54,11 @@ const AdminDashboard: React.FC = () => {
     setUploading(true);
     try {
       const tagArray = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
-      
-      // Note: We are uploading with default is_featured = false
       await supabaseService.uploadImage(file, prompt, category, tagArray);
       
-      // Reset & Switch Tab
       setFile(null); setPrompt(''); setTags(''); setCategory(CATEGORIES[1]);
       alert('Upload Successful!');
-      setActiveTab('manage'); // Switch to view the new image
+      setActiveTab('manage');
     } catch (err: any) {
       console.error(err);
       alert(err.message || "Upload failed");
@@ -74,7 +70,6 @@ const AdminDashboard: React.FC = () => {
   // --- 3. EDIT & DELETE HANDLERS ---
   const handleSaveEdit = async (updatedImage: ImageItem) => {
     try {
-      // Direct Supabase update because we need to update specific fields including is_featured
       const { error } = await supabase
         .from('images')
         .update({
@@ -86,8 +81,6 @@ const AdminDashboard: React.FC = () => {
         .eq('id', updatedImage.id);
 
       if (error) throw error;
-
-      // Update local state instantly
       setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
     } catch (err: any) {
       alert('Update failed: ' + err.message);
@@ -110,19 +103,20 @@ const AdminDashboard: React.FC = () => {
         
         {/* Header & Tabs */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+          {/* FIX: text-white -> text-textPrimary */}
+          <h1 className="text-3xl font-bold text-textPrimary">Admin Dashboard</h1>
           
           <div className="flex bg-surfaceHighlight p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('manage')}
-              className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${activeTab === 'manage' ? 'bg-surface text-white shadow' : 'text-gray-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${activeTab === 'manage' ? 'bg-surface text-textPrimary shadow' : 'text-textSecondary hover:text-textPrimary'}`}
             >
               <Grid size={18} />
               Manage Gallery
             </button>
             <button
               onClick={() => setActiveTab('upload')}
-              className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${activeTab === 'upload' ? 'bg-accent text-black font-medium shadow' : 'text-gray-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${activeTab === 'upload' ? 'bg-accent text-white font-medium shadow' : 'text-textSecondary hover:text-textPrimary'}`}
             >
               <Upload size={18} />
               Upload New
@@ -135,13 +129,14 @@ const AdminDashboard: React.FC = () => {
           <div className="space-y-6">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-textSecondary" size={20} />
+              {/* FIX: bg-surface and text-textPrimary */}
               <input 
                 type="text" 
                 placeholder="Search by prompt or category..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-surface border border-surfaceHighlight rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-accent"
+                className="w-full bg-surface border border-surfaceHighlight rounded-xl py-3 pl-10 pr-4 text-textPrimary focus:outline-none focus:border-accent"
               />
             </div>
 
@@ -160,17 +155,15 @@ const AdminDashboard: React.FC = () => {
                     <div className="relative h-48 bg-black">
                       <img src={img.thumbnail} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                       
-                      {/* Featured Badge */}
                       {img.is_featured && (
-                        <div className="absolute top-2 right-2 bg-accent text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg uppercase tracking-wider">
+                        <div className="absolute top-2 right-2 bg-accent text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg uppercase tracking-wider">
                           Featured
                         </div>
                       )}
 
-                      {/* Edit Button (Visible on Hover) */}
                       <button 
                         onClick={() => setEditingImage(img)}
-                        className="absolute bottom-2 right-2 bg-black/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-black"
+                        className="absolute bottom-2 right-2 bg-black/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-white"
                       >
                         <Edit2 size={16} />
                       </button>
@@ -178,12 +171,13 @@ const AdminDashboard: React.FC = () => {
 
                     {/* Content */}
                     <div className="p-4">
-                      <p className="text-gray-300 text-sm line-clamp-2 mb-3 h-10">{img.prompt}</p>
+                      {/* FIX: text-gray-300 -> text-textPrimary */}
+                      <p className="text-textPrimary text-sm line-clamp-2 mb-3 h-10">{img.prompt}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs bg-surfaceHighlight px-2 py-1 rounded text-gray-400 border border-white/5">
+                        <span className="text-xs bg-surfaceHighlight px-2 py-1 rounded text-textSecondary border border-surfaceHighlight">
                             {img.category}
                         </span>
-                        <span className="text-[10px] text-gray-600">ID: {img.id.slice(0,4)}</span>
+                        <span className="text-[10px] text-textSecondary">ID: {img.id.slice(0,4)}</span>
                       </div>
                     </div>
                   </div>
@@ -193,11 +187,12 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* --- TAB: UPLOAD (Updated for Custom Categories) --- */}
+        {/* --- TAB: UPLOAD --- */}
         {activeTab === 'upload' && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-surface p-6 md:p-8 rounded-2xl shadow-neumorphic border border-surfaceHighlight">
-                <h2 className="text-xl font-bold text-white mb-6">Upload New Image</h2>
+                {/* FIX: text-white -> text-textPrimary */}
+                <h2 className="text-xl font-bold text-textPrimary mb-6">Upload New Image</h2>
                 
                 <form onSubmit={handleUpload} className="space-y-6">
                     {/* Drag Drop Area */}
@@ -220,7 +215,7 @@ const AdminDashboard: React.FC = () => {
                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-3">
                              {file ? (
                                 <>
-                                    <div className="text-green-400 font-medium break-all bg-green-400/10 px-4 py-2 rounded-lg">{file.name}</div>
+                                    <div className="text-green-500 font-medium break-all bg-green-500/10 px-4 py-2 rounded-lg">{file.name}</div>
                                     <span className="text-xs text-textSecondary">Click to change</span>
                                 </>
                              ) : (
@@ -237,12 +232,13 @@ const AdminDashboard: React.FC = () => {
 
                     <div>
                         <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Prompt</label>
+                        {/* FIX: bg-black/30 -> bg-background, text-white -> text-textPrimary */}
                         <textarea 
                             value={prompt}
                             onChange={e => setPrompt(e.target.value)}
                             required
                             rows={4}
-                            className="w-full bg-black/30 border border-surfaceHighlight rounded-lg p-3 text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none text-sm"
+                            className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none text-sm"
                             placeholder="Enter the detailed AI prompt..."
                         />
                     </div>
@@ -251,12 +247,12 @@ const AdminDashboard: React.FC = () => {
                         <div>
                             <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Category</label>
                             
-                            {/* UPDATED: Input with Datalist for Custom Categories */}
+                            {/* FIX: bg-black/30 -> bg-background, text-white -> text-textPrimary */}
                             <input 
                                 list="category-suggestions" 
                                 value={category}
                                 onChange={e => setCategory(e.target.value)}
-                                className="w-full bg-black/30 border border-surfaceHighlight rounded-lg p-3 text-white focus:border-accent outline-none text-sm h-11"
+                                className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-11"
                                 placeholder="Type new or select..." 
                             />
                             <datalist id="category-suggestions">
@@ -268,11 +264,12 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Tags</label>
+                            {/* FIX: bg-black/30 -> bg-background, text-white -> text-textPrimary */}
                             <input 
                                 type="text"
                                 value={tags}
                                 onChange={e => setTags(e.target.value)}
-                                className="w-full bg-black/30 border border-surfaceHighlight rounded-lg p-3 text-white focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all text-sm h-11"
+                                className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all text-sm h-11"
                                 placeholder="dark, 4k, realistic"
                             />
                         </div>
@@ -281,8 +278,8 @@ const AdminDashboard: React.FC = () => {
                     <button 
                         type="submit" 
                         disabled={uploading || !file}
-                        className={`w-full py-3 rounded-lg font-bold text-black transition-all transform active:scale-[0.99] ${
-                            uploading || !file ? 'bg-gray-600 cursor-not-allowed' : 'bg-accent hover:bg-accent/90 shadow-lg shadow-accent/20'
+                        className={`w-full py-3 rounded-lg font-bold text-white transition-all transform active:scale-[0.99] ${
+                            uploading || !file ? 'bg-gray-400 cursor-not-allowed' : 'bg-accent hover:bg-accent/90 shadow-lg shadow-accent/20'
                         }`}
                     >
                         {uploading ? 'Uploading...' : 'Upload Image'}
@@ -292,7 +289,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* --- EDIT MODAL --- */}
         {editingImage && (
           <EditImageModal 
             image={editingImage} 
