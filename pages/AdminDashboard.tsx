@@ -193,7 +193,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* --- TAB: UPLOAD (Your Existing Form Logic) --- */}
+        {/* --- TAB: UPLOAD (Updated for Custom Categories) --- */}
         {activeTab === 'upload' && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-surface p-6 md:p-8 rounded-2xl shadow-neumorphic border border-surfaceHighlight">
@@ -250,15 +250,21 @@ const AdminDashboard: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Category</label>
-                            <select 
+                            
+                            {/* UPDATED: Input with Datalist for Custom Categories */}
+                            <input 
+                                list="category-suggestions" 
                                 value={category}
                                 onChange={e => setCategory(e.target.value)}
                                 className="w-full bg-black/30 border border-surfaceHighlight rounded-lg p-3 text-white focus:border-accent outline-none text-sm h-11"
-                            >
+                                placeholder="Type new or select..." 
+                            />
+                            <datalist id="category-suggestions">
                                 {CATEGORIES.filter(c => c !== 'All').map(c => (
-                                    <option key={c} value={c}>{c}</option>
+                                    <option key={c} value={c} />
                                 ))}
-                            </select>
+                            </datalist>
+
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Tags</label>

@@ -4,7 +4,8 @@ import GalleryGrid from '../components/GalleryGrid';
 import { ImageItem, SortOption } from '../types';
 import { supabaseService } from '../services/supabaseService';
 import { Search, Filter, ArrowDownUp } from 'lucide-react';
-import { CATEGORIES } from '../constants';
+// We don't strictly need CATEGORIES from constants anymore for the dropdown, 
+// but we keep the import if other parts need it.
 
 const Home: React.FC = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -13,12 +14,26 @@ const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
 
+  // 1. NEW STATE: For Dynamic Categories fetched from DB
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>(['All']);
+
   useEffect(() => {
     const fetchImages = async () => {
       setLoading(true);
       try {
         const data = await supabaseService.getImages();
         setImages(data);
+
+        // 2. NEW LOGIC: Extract unique categories from the loaded images
+        if (data.length > 0) {
+          // Get all category strings
+          const allCats = data.map(img => img.category);
+          // Remove duplicates using Set
+          const uniqueCats = Array.from(new Set(allCats));
+          // Sort alphabetically and put 'All' at the start
+          setDynamicCategories(['All', ...uniqueCats.sort()]);
+        }
+
       } catch (error) {
         console.error('Error fetching images:', error);
       } finally {
@@ -28,19 +43,16 @@ const Home: React.FC = () => {
     fetchImages();
   }, []);
 
-  // 1. LOGIC UPDATE: Determine which images go to the Slider
+  // Logic: Determine which images go to the Slider
   const featuredImages = useMemo(() => {
-    // Try to find images explicitly marked as "Featured" in Admin
     const featured = images.filter(img => img.is_featured === true);
-    
-    // If we have featured images, show them. Otherwise, fallback to the newest 5.
     if (featured.length > 0) {
       return featured;
     }
     return images.slice(0, 5);
   }, [images]);
 
-  // 2. Filter Logic (Preserved)
+  // Filter Logic
   const filteredImages = useMemo(() => {
     let result = [...images];
 
@@ -72,27 +84,25 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen pb-10">
       
-      {/* 3. UI UPDATE: Carousel Section with Skeleton */}
+      {/* Carousel Section */}
       <section className="mb-6">
         {loading ? (
-          /* Loading State: Gray pulsing box */
           <div className="max-w-6xl mx-auto px-4 mt-6">
             <div className="w-full h-64 md:h-96 bg-surfaceHighlight rounded-2xl animate-pulse border border-white/5 shadow-xl"></div>
           </div>
         ) : (
-          /* Success State: Show Carousel if we have images */
           featuredImages.length > 0 && (
             <Carousel images={featuredImages} />
           )
         )}
       </section>
 
-      {/* Controls Section (Preserved Your Layout) */}
+      {/* Controls Section */}
       <section className="sticky top-16 z-40 bg-background/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between">
           
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
-             {/* Filter Dropdown */}
+             {/* 3. UI UPDATE: Dynamic Filter Dropdown */}
              <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
                 <Filter size={16} className="ml-2 mr-2 text-textSecondary"/>
                 <select 
@@ -100,7 +110,8 @@ const Home: React.FC = () => {
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     className="bg-transparent text-sm text-white focus:outline-none p-1 pr-4 cursor-pointer"
                 >
-                    {CATEGORIES.map(cat => (
+                    {/* Map over dynamicCategories instead of fixed CATEGORIES */}
+                    {dynamicCategories.map(cat => (
                         <option key={cat} value={cat} className="bg-surface text-white">{cat}</option>
                     ))}
                 </select>
