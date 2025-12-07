@@ -1,12 +1,21 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { ImageItem } from '../types';
+import { createClient } from '@supabase/supabase-js';
+import { ImageItem, AuditLog } from '../types';
 
 // Initialize the client
-// NOTE: In a real Vite app, use import.meta.env.VITE_SUPABASE_URL
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
 const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- HELPER: LOG ACTIVITY TO DB ---
+const logActivity = async (action: string, details: string) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && user.email) {
+    await supabase.from('audit_logs').insert([
+      { admin_email: user.email, action, details }
+    ]);
+  }
+};
 
 export class SupabaseService {
   
@@ -54,12 +63,24 @@ export class SupabaseService {
       .single();
 
     if (error) {
-      // Return undefined if not found or error, to match previous behavior
       return undefined;
     }
     return data as ImageItem;
   }
 
+  // --- NEW: Get Audit Logs (For Super Admin) ---
+  async getAuditLogs(): Promise<AuditLog[]> {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50); // Show last 50 actions
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  // --- Upload with Tracking ---
   async uploadImage(file: File, prompt: string, category: string, tags: string[]): Promise<ImageItem> {
     const user = await this.getCurrentUser();
     if (!user) throw new Error("User must be logged in to upload");
@@ -70,7 +91,7 @@ export class SupabaseService {
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('prompts-images')
+      .from('prompts-images') // Keeping your bucket name 'prompts-images'
       .upload(filePath, file);
 
     if (uploadError) throw uploadError;
@@ -80,22 +101,19 @@ export class SupabaseService {
       .from('prompts-images')
       .getPublicUrl(filePath);
 
-    // 3. Insert into Database
+    // 3. Insert into Database (With created_by ID)
     const { data, error: insertError } = await supabase
       .from('images')
       .insert([
         {
           url: publicUrl,
-          thumbnail: publicUrl, // Using same URL for simplicity; could use a resized version if implementing cloud functions
+          thumbnail: publicUrl,
           prompt,
           category,
           tags,
-          // We can optionally store width/height if we read the image first, 
-          // or let them be null if schema allows. For now passing 0 or mock defaults 
-          // unless we add image reading logic.
-          width: 0, 
-          height: 0,
-          added_by: user.id
+          width: 800, // Default width
+          height: 600, // Default height
+          created_by: user.id // TRACKING: Save the Admin ID
         }
       ])
       .select()
@@ -103,15 +121,19 @@ export class SupabaseService {
 
     if (insertError) throw insertError;
 
+    // 4. LOG IT
+    await logActivity('UPLOAD', `Uploaded image in ${category}: "${prompt.substring(0, 15)}..."`);
+
     return data as ImageItem;
   }
 
+  // --- Delete with Tracking ---
   async deleteImage(id: string): Promise<void> {
     // 1. Get the image URL to find the storage path
     const item = await this.getImageById(id);
     if (!item) return;
 
-    // Extract filename from URL (assumes standard Supabase storage URL format)
+    // Extract filename from URL
     const urlParts = item.url.split('/');
     const fileName = urlParts[urlParts.length - 1];
 
@@ -126,6 +148,9 @@ export class SupabaseService {
       .eq('id', id);
 
     if (error) throw error;
+
+    // 3. LOG IT
+    await logActivity('DELETE', `Deleted image ID: ${id.slice(0, 8)}`);
   }
 }
 

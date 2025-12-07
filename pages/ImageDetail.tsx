@@ -156,7 +156,22 @@ const ImageDetail: React.FC = () => {
           {/* Image */}
           <div className="space-y-4">
              <img src={image.url} alt="Main" className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
-             
+             {/* SUPER ADMIN DOT */}
+{isAdmin && image.created_by && (
+  <div 
+    className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10"
+    title="Admin Creator ID"
+  >
+    <div 
+      className="w-3 h-3 rounded-full border border-white shadow-sm" 
+      style={{ backgroundColor: getAdminColor(image.created_by) }}
+    />
+    <span className="text-[10px] text-gray-300 font-mono">
+      {image.created_by.slice(0, 6)}...
+    </span>
+  </div>
+)}
+
              {isAdmin && (
               <button onClick={() => setIsEditModalOpen(true)} className="w-full py-3 border border-dashed border-accent/30 text-accent rounded-xl hover:bg-surfaceHighlight">
                 <Edit2 size={18} className="inline mr-2"/> Edit Image Details

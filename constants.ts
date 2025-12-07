@@ -1,86 +1,23 @@
 import { ImageItem } from './types';
 
-export const DEMO_IMAGES: ImageItem[] = [
-  {
-    id: '1',
-    url: 'https://picsum.photos/id/1015/800/600',
-    thumbnail: 'https://picsum.photos/id/1015/400/300',
-    prompt: 'A breathtaking landscape of a river valley at sunset with terraced rice fields.',
-    category: 'Landscape',
-    tags: ['sunset', 'river', 'nature'],
-    width: 800,
-    height: 600,
-  },
-  {
-    id: '2',
-    url: 'https://picsum.photos/id/1025/600/800',
-    thumbnail: 'https://picsum.photos/id/1025/300/400',
-    prompt: 'A cute pug wrapped in a cozy blanket wearing oversized glasses.',
-    category: 'Animals',
-    tags: ['dog', 'cute', 'portrait'],
-    width: 600,
-    height: 800,
-  },
-  {
-    id: '3',
-    url: 'https://picsum.photos/id/1035/800/800',
-    thumbnail: 'https://picsum.photos/id/1035/400/400',
-    prompt: 'A hiker standing on top of a mountain looking at a waterfall.',
-    category: 'Adventure',
-    tags: ['hiking', 'waterfall', 'outdoors'],
-    width: 800,
-    height: 800,
-  },
-  {
-    id: '4',
-    url: 'https://picsum.photos/id/106/800/500',
-    thumbnail: 'https://picsum.photos/id/106/400/250',
-    prompt: 'Cyberpunk city street at night with neon signs and rain.',
-    category: 'Sci-Fi',
-    tags: ['cyberpunk', 'neon', 'city'],
-    width: 800,
-    height: 500,
-  },
-  {
-    id: '5',
-    url: 'https://picsum.photos/id/1074/600/900',
-    thumbnail: 'https://picsum.photos/id/1074/300/450',
-    prompt: 'A close-up of a lioness staring intensely with golden eyes.',
-    category: 'Animals',
-    tags: ['lion', 'wildlife', 'intense'],
-    width: 600,
-    height: 900,
-  },
-  {
-    id: '6',
-    url: 'https://picsum.photos/id/16/800/600',
-    thumbnail: 'https://picsum.photos/id/16/400/300',
-    prompt: 'A calm lake reflecting the mountains and sky in the morning mist.',
-    category: 'Landscape',
-    tags: ['lake', 'reflection', 'peaceful'],
-    width: 800,
-    height: 600,
-  },
-  {
-    id: '7',
-    url: 'https://picsum.photos/id/237/600/800',
-    thumbnail: 'https://picsum.photos/id/237/300/400',
-    prompt: 'A black puppy playing in the grass.',
-    category: 'Animals',
-    tags: ['puppy', 'playful', 'grass'],
-    width: 600,
-    height: 800,
-  },
-  {
-    id: '8',
-    url: 'https://picsum.photos/id/301/800/500',
-    thumbnail: 'https://picsum.photos/id/301/400/250',
-    prompt: 'An old rusty boat stranded on a sandy beach.',
-    category: 'Abstract',
-    tags: ['boat', 'beach', 'rusty'],
-    width: 800,
-    height: 500,
-  },
+export const DEMO_IMAGES: ImageItem[] = []; // Keep empty or your demo data
+
+export const CATEGORIES = [
+  'All', 'Landscape', 'Animals', 'Sci-Fi', 'Adventure', 
+  'Abstract', 'Portrait', 'Anime', 'Realistic', 
+  '3D Render', 'Logo Design', 'Architecture'
 ];
 
-export const CATEGORIES = ['All', 'Landscape', 'Animals', 'Sci-Fi', 'Adventure', 'Abstract', 'Portrait'];
+// --- SUPER ADMIN CONFIG ---
+// 1. MAKE SURE THIS IS YOUR EXACT LOGIN EMAIL
+export const SUPER_ADMIN_EMAIL = "rasaljaman15@gmail.com"; 
+
+export const getAdminColor = (adminId: string | undefined) => {
+  if (!adminId) return '#94a3b8'; // Default Gray
+  let hash = 0;
+  for (let i = 0; i < adminId.length; i++) {
+    hash = adminId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00ffffff).toString(16).toUpperCase();
+  return '#' + '00000'.substring(0, 6 - c.length) + c;
+};
