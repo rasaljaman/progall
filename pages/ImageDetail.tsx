@@ -112,8 +112,22 @@ const ImageDetail: React.FC = () => {
       handleCopy();
     }
   };
+  
+    const handleSaveEdit = async (updatedImage: ImageItem) => {
+    try {
+      // UPDATED: Use the service so it logs the 'EDIT' action
+      await supabaseService.updateImage(updatedImage);
+      
+      // Update UI immediately
+      setImage(updatedImage);
+    } catch (err) {
+      console.error('Failed to update', err);
+      alert('Failed to save changes.');
+    }
+  };
 
-  const handleSaveEdit = async (updatedImage: ImageItem) => {
+
+  /* const handleSaveEdit = async (updatedImage: ImageItem) => {
     const { error } = await supabase
       .from('images')
       .update({
@@ -127,7 +141,7 @@ const ImageDetail: React.FC = () => {
     if (!error) {
       setImage(updatedImage); 
     }
-  };
+  }; */
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this image permanently?')) {

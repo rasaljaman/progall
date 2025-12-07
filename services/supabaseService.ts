@@ -127,6 +127,24 @@ export class SupabaseService {
     return data as ImageItem;
   }
 
+  // --- NEW: Update Image with Logging ---
+  async updateImage(image: ImageItem): Promise<void> {
+    const { error } = await supabase
+      .from('images')
+      .update({
+        prompt: image.prompt,
+        category: image.category,
+        tags: image.tags,
+        is_featured: image.is_featured
+      })
+      .eq('id', image.id);
+
+    if (error) throw error;
+
+    // Log Edit
+    await logActivity('EDIT', `Edited details for image ID: ${image.id.slice(0, 4)}...`);
+  }
+
   // --- Delete with Tracking ---
   async deleteImage(id: string): Promise<void> {
     // 1. Get the image URL to find the storage path

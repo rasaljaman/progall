@@ -107,8 +107,21 @@ const AdminDashboard: React.FC = () => {
       setUploading(false);
     }
   };
+  
+    const handleSaveEdit = async (updatedImage: ImageItem) => {
+    try {
+      // UPDATED: Use the service function so it logs the 'EDIT' action
+      await supabaseService.updateImage(updatedImage);
 
-  const handleSaveEdit = async (updatedImage: ImageItem) => {
+      // Update local state to reflect changes immediately in the UI
+      setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
+    } catch (err: any) {
+      alert('Update failed: ' + err.message);
+    }
+  };
+
+
+  /* const handleSaveEdit = async (updatedImage: ImageItem) => {
     try {
       const { error } = await supabase.from('images').update({
           prompt: updatedImage.prompt, category: updatedImage.category,
@@ -120,7 +133,7 @@ const AdminDashboard: React.FC = () => {
     } catch (err: any) {
       alert('Update failed: ' + err.message);
     }
-  };
+  }; */
 
   const handleDelete = async (id: string) => {
     try {
