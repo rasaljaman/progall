@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImageItem } from '../types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface CarouselProps {
@@ -10,8 +10,13 @@ interface CarouselProps {
 const Carousel: React.FC<CarouselProps> = ({ images }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Auto-advance optional, disabling for now as per prompt preference "manual swipe".
-  // Keeping manual control.
+  // 1. Auto-slide logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 5000); // 5 seconds
+    return () => clearInterval(interval);
+  }, [currentIndex]);
 
   const nextSlide = () => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -21,61 +26,74 @@ const Carousel: React.FC<CarouselProps> = ({ images }) => {
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  if (images.length === 0) return null;
-
-  const currentImage = images[currentIndex];
+  if (!images || images.length === 0) return null;
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-6 px-4">
-      <div className="relative group">
-        {/* Main Image Card */}
-        <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl bg-surface aspect-video md:aspect-[21/9] lg:aspect-[2/1] transition-all">
-          <Link to={`/image/${currentImage.id}`}>
-             <img
-              src={currentImage.url}
-              alt={currentImage.prompt}
-              className="w-full h-full object-cover object-center transform transition-transform duration-700 hover:scale-105"
-            />
-          </Link>
-          
-          {/* Overlay Gradient (Subtle) */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 pointer-events-none" />
-          
-          <div className="absolute bottom-4 left-4 right-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-             <p className="text-sm font-medium bg-black/50 inline-block px-3 py-1 rounded-full backdrop-blur-sm">
-                Featured
-             </p>
+    <div className="relative w-full max-w-7xl mx-auto mt-6 px-4">
+      {/* Container aspect ratio */}
+      <div className="relative group w-full h-64 md:h-96 rounded-2xl overflow-hidden shadow-2xl bg-surfaceHighlight">
+        
+        {/* 2. Render ALL images stacked (for smooth crossfade) */}
+        {images.map((img, index) => (
+          <div
+            key={img.id}
+            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+              index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            }`}
+          >
+            <Link to={`/image/${img.id}`} className="block w-full h-full">
+                <img
+                    src={img.url}
+                    alt={img.prompt}
+                    // 3. Priority Loading: Load first image immediately, others lazily
+                    loading={index === 0 ? "eager" : "lazy"}
+                    className="w-full h-full object-cover"
+                />
+                
+                {/* Gradient & Text Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                
+                <div className="absolute bottom-6 left-6 right-12 text-white">
+                    <span className="text-accent text-xs font-bold uppercase tracking-wider mb-1 block">
+                        Featured {img.category}
+                    </span>
+                    <p className="text-lg md:text-2xl font-light line-clamp-2 text-gray-100">
+                        {img.prompt}
+                    </p>
+                </div>
+            </Link>
           </div>
-        </div>
+        ))}
 
-        {/* Controls */}
+        {/* 4. Controls - Always visible on mobile, hover on desktop */}
         <button
-          onClick={prevSlide}
-          className="absolute top-1/2 -left-2 md:-left-6 transform -translate-y-1/2 bg-surfaceHighlight/80 hover:bg-accent hover:text-black text-white p-3 rounded-full backdrop-blur-sm shadow-lg transition-all z-10 opacity-0 group-hover:opacity-100"
-          aria-label="Previous Slide"
+          onClick={(e) => { e.preventDefault(); prevSlide(); }}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-accent transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          aria-label="Previous"
         >
           <ChevronLeft size={24} />
         </button>
 
         <button
-          onClick={nextSlide}
-          className="absolute top-1/2 -right-2 md:-right-6 transform -translate-y-1/2 bg-surfaceHighlight/80 hover:bg-accent hover:text-black text-white p-3 rounded-full backdrop-blur-sm shadow-lg transition-all z-10 opacity-0 group-hover:opacity-100"
-          aria-label="Next Slide"
+          onClick={(e) => { e.preventDefault(); nextSlide(); }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-accent transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          aria-label="Next"
         >
           <ChevronRight size={24} />
         </button>
-        
-        {/* Dots */}
-        <div className="flex justify-center gap-2 mt-4">
-            {images.map((_, idx) => (
-                <button
-                    key={idx}
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                        idx === currentIndex ? 'bg-accent w-6' : 'bg-surfaceHighlight'
-                    }`}
-                />
-            ))}
+
+        {/* Indicators */}
+        <div className="absolute bottom-4 right-4 z-20 flex gap-2">
+          {images.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === currentIndex ? 'w-6 bg-accent' : 'w-2 bg-white/40 hover:bg-white'
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
         </div>
       </div>
     </div>
