@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabaseService';
+import { Helmet } from 'react-helmet-async'; // Import SEO Library
+import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem } from '../types';
 import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react';
+import { getAdminColor } from '../constants'; // Import for Admin Dots
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
 
@@ -38,6 +40,7 @@ const ImageDetail: React.FC = () => {
 
       setImage(currentImg);
 
+      // Smart Sort for Related Images
       const { data: allImages } = await supabase
         .from('images')
         .select('*')
@@ -80,18 +83,11 @@ const ImageDetail: React.FC = () => {
     }
   };
   
-  // --- FIXED REMIX FUNCTION ---
   const handleGeminiRemix = () => {
     if (image) {
-      // 1. Open the tab IMMEDIATELY (Bypasses pop-up blocker)
+      // Open immediately to bypass blockers, then copy
       const newTab = window.open('https://gemini.google.com/app', '_blank');
-
-      // 2. Copy to clipboard in the background
       navigator.clipboard.writeText(image.prompt)
-        .then(() => {
-           // Optional: You can alert if you want, but it interrupts flow
-           // console.log("Copied successfully");
-        })
         .catch((err) => {
            console.error("Copy failed", err);
            if(newTab) alert("Please copy the prompt manually.");
@@ -113,12 +109,10 @@ const ImageDetail: React.FC = () => {
     }
   };
   
-    const handleSaveEdit = async (updatedImage: ImageItem) => {
+  const handleSaveEdit = async (updatedImage: ImageItem) => {
     try {
-      // UPDATED: Use the service so it logs the 'EDIT' action
+      // Use service to ensure logging
       await supabaseService.updateImage(updatedImage);
-      
-      // Update UI immediately
       setImage(updatedImage);
     } catch (err) {
       console.error('Failed to update', err);
@@ -126,26 +120,9 @@ const ImageDetail: React.FC = () => {
     }
   };
 
-
-  /* const handleSaveEdit = async (updatedImage: ImageItem) => {
-    const { error } = await supabase
-      .from('images')
-      .update({
-        prompt: updatedImage.prompt,
-        category: updatedImage.category,
-        tags: updatedImage.tags,
-        is_featured: updatedImage.is_featured
-      })
-      .eq('id', updatedImage.id);
-
-    if (!error) {
-      setImage(updatedImage); 
-    }
-  }; */
-
   const handleDelete = async (id: string) => {
     if (confirm('Delete this image permanently?')) {
-        await supabase.from('images').delete().eq('id', id);
+        await supabaseService.deleteImage(id); // Use service for logging
         navigate('/');
     }
   };
@@ -155,9 +132,22 @@ const ImageDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 pt-6">
+      
+      {/* SEO META TAGS */}
+      <Helmet>
+        <title>{image.prompt.slice(0, 60)}... | ProGall</title>
+        <meta name="description" content={`Download this AI generated ${image.category} art. Prompt: ${image.prompt.slice(0, 150)}...`} />
+        
+        {/* Social Sharing (Open Graph) */}
+        <meta property="og:title" content={`${image.category} AI Art | ProGall`} />
+        <meta property="og:description" content={image.prompt} />
+        <meta property="og:image" content={image.thumbnail} />
+        <meta property="og:url" content={window.location.href} />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Helmet>
+
       <div className="max-w-7xl mx-auto px-4">
         
-        {/* Back Button */}
         <button 
           onClick={() => navigate('/')} 
           className="flex items-center gap-2 text-textSecondary hover:text-textPrimary mb-6 transition-colors"
@@ -167,24 +157,26 @@ const ImageDetail: React.FC = () => {
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Image */}
-          <div className="space-y-4">
-             <img src={image.url} alt="Main" className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
+          
+          {/* Image Column */}
+          <div className="space-y-4 relative">
+             <img src={image.url} alt={image.prompt} className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
+             
              {/* SUPER ADMIN DOT */}
-{isAdmin && image.created_by && (
-  <div 
-    className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10"
-    title="Admin Creator ID"
-  >
-    <div 
-      className="w-3 h-3 rounded-full border border-white shadow-sm" 
-      style={{ backgroundColor: getAdminColor(image.created_by) }}
-    />
-    <span className="text-[10px] text-gray-300 font-mono">
-      {image.created_by.slice(0, 6)}...
-    </span>
-  </div>
-)}
+             {isAdmin && image.created_by && (
+                <div 
+                  className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10"
+                  title="Admin Creator ID"
+                >
+                  <div 
+                    className="w-3 h-3 rounded-full border border-white shadow-sm" 
+                    style={{ backgroundColor: getAdminColor(image.created_by) }}
+                  />
+                  <span className="text-[10px] text-gray-300 font-mono">
+                    {image.created_by.slice(0, 6)}...
+                  </span>
+                </div>
+             )}
 
              {isAdmin && (
               <button onClick={() => setIsEditModalOpen(true)} className="w-full py-3 border border-dashed border-accent/30 text-accent rounded-xl hover:bg-surfaceHighlight">
@@ -193,7 +185,7 @@ const ImageDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Details */}
+          {/* Details Column */}
           <div className="space-y-6">
             <div>
               <span className="text-accent text-sm font-bold uppercase">{image.category}</span>
