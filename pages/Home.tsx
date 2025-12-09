@@ -13,6 +13,31 @@ const Home: React.FC = () => {
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [dynamicCategories, setDynamicCategories] = useState<string[]>(['All']);
 
+  // --- 1. SMART SCROLL STATE ---
+  const [showControls, setShowControls] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // --- 2. SCROLL LISTENER ---
+  useEffect(() => {
+    const controlControls = () => {
+      if (typeof window !== 'undefined') {
+        const currentScrollY = window.scrollY;
+        
+        // Hide if scrolling DOWN and not at the very top (past 100px)
+        if (currentScrollY > lastScrollY && currentScrollY > 100) {
+          setShowControls(false);
+        } else {
+          // Show if scrolling UP
+          setShowControls(true);
+        }
+        setLastScrollY(currentScrollY);
+      }
+    };
+
+    window.addEventListener('scroll', controlControls);
+    return () => window.removeEventListener('scroll', controlControls);
+  }, [lastScrollY]);
+
   useEffect(() => {
     const fetchImages = async () => {
       setLoading(true);
@@ -70,15 +95,21 @@ const Home: React.FC = () => {
         )}
       </section>
 
-      {/* Controls Section */}
-      <section className="sticky top-16 z-40 bg-surface/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6">
+      {/* --- CONTROLS SECTION (Search, Filter, Sort) --- */}
+      {/* Logic: Sticky at top-16 (below navbar). If showControls is false, slide it up (-translate-y) and hide it */}
+      <section 
+        className={`sticky top-16 z-40 bg-surface/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6 transition-all duration-300 ease-in-out ${
+          showControls 
+            ? 'translate-y-0 opacity-100 shadow-lg' 
+            : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between">
           
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
              {/* Filter Dropdown */}
              <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
                 <Filter size={16} className="ml-2 mr-2 text-textSecondary"/>
-                {/* FIX: Changed text-white to text-textPrimary */}
                 <select 
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
@@ -93,7 +124,6 @@ const Home: React.FC = () => {
              {/* Sort Dropdown */}
              <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
                 <ArrowDownUp size={16} className="ml-2 mr-2 text-textSecondary"/>
-                {/* FIX: Changed text-white to text-textPrimary */}
                 <select 
                     value={sortOption}
                     onChange={(e) => setSortOption(e.target.value as SortOption)}
@@ -110,7 +140,6 @@ const Home: React.FC = () => {
             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-textSecondary group-focus-within:text-accent transition-colors">
               <Search size={18} />
             </div>
-            {/* FIX: Changed text-white to text-textPrimary */}
             <input
               type="text"
               placeholder="Search prompts..."
