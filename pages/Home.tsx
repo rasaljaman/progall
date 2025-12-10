@@ -75,7 +75,7 @@ const Home: React.FC = () => {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY;
         // Hide if scrolling DOWN and not at the very top
-        if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        if (currentScrollY > lastScrollY && currentScrollY > 400) {
           setShowControls(false);
         } else {
           setShowControls(true);
@@ -160,7 +160,9 @@ const Home: React.FC = () => {
 
       {/* --- SMART CONTROLS SECTION --- */}
       <section 
-        className={`sticky top-16 z-40 bg-surface/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6 transition-all duration-300 ease-in-out ${
+        className={`sticky top-16 z-40 bg-surface/95 backdrop-blur py-4 px-4
+        border-b border-surfaceHighlight mb-6 transition-all duration-300
+        ease-in-out ${
           showControls 
             ? 'translate-y-0 opacity-100 shadow-lg' 
             : '-translate-y-full opacity-0 pointer-events-none'
