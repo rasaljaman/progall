@@ -79,6 +79,30 @@ export class SupabaseService {
     if (error) throw error;
     return data || [];
   }
+  
+    // --- NEW: Dashboard Stats ---
+  async getStats() {
+    const user = await this.getCurrentUser();
+    if (!user) return null;
+
+    // 1. Total Images
+    const { count: totalCount } = await supabase
+      .from('images')
+      .select('*', { count: 'exact', head: true });
+
+    // 2. My Uploads
+    const { count: myCount } = await supabase
+      .from('images')
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', user.id);
+
+    return {
+      total: totalCount || 0,
+      mine: myCount || 0,
+      team: (totalCount || 0) - (myCount || 0)
+    };
+  }
+
 
   // --- Upload with Tracking ---
   async uploadImage(file: File, prompt: string, category: string, tags: string[]): Promise<ImageItem> {

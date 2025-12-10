@@ -26,3 +26,9 @@ export interface AuditLog {
   details: string;
   created_at: string;
 }
+
+export interface DashboardStats {
+  totalImages: number;
+  myUploads: number;
+  totalLogs: number;
+}

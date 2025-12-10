@@ -1,22 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Grid, Search, Edit2, Activity } from 'lucide-react'; 
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, Grid, Search, Edit2, Activity, Filter, BarChart3, PieChart, Users } from 'lucide-react'; 
 import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem, AuditLog } from '../types';
 import { CATEGORIES, SUPER_ADMIN_EMAIL, getAdminColor } from '../constants';
 import EditImageModal from '../components/EditImageModal';
 
 const AdminDashboard: React.FC = () => {
-  // Tabs: 'manage' | 'upload' | 'activity'
   const [activeTab, setActiveTab] = useState<string>('manage');
   
-  // State
+  // Data State
   const [images, setImages] = useState<ImageItem[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  
+  // --- PHASE 3: STATS STATE ---
+  const [stats, setStats] = useState({ total: 0, mine: 0, team: 0 });
+  
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   
-  // Super Admin Check
+  // --- PHASE 3: FILTER STATE ---
+  const [filterAdmin, setFilterAdmin] = useState('All');
+  const [filterAction, setFilterAction] = useState('All');
+  
+  // Auth State
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState('');
 
@@ -28,22 +35,26 @@ const AdminDashboard: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  // --- 1. INITIAL LOAD & AUTH CHECK (UPDATED) ---
+  // --- 1. INITIAL LOAD ---
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && user.email) {
-        // Normalize emails: lowercase and trim spaces to prevent mismatch
         const currentEmail = user.email.toLowerCase().trim();
         const superEmail = SUPER_ADMIN_EMAIL.toLowerCase().trim();
         
         setCurrentUserEmail(currentEmail);
         
-        // Debugging: View this in console if it still fails
-        console.log(`Checking Admin: ${currentEmail} === ${superEmail}`);
-
         if (currentEmail === superEmail) {
           setIsSuperAdmin(true);
+          
+          // --- FETCH STATS (Only for Super Admin) ---
+          try {
+            const statsData = await supabaseService.getStats();
+            if (statsData) setStats(statsData);
+          } catch (e) {
+            console.error("Stats fetch error:", e);
+          }
         }
       }
     };
@@ -51,7 +62,7 @@ const AdminDashboard: React.FC = () => {
     loadImages();
   }, []);
 
-  // --- 2. FETCH DATA BASED ON TAB ---
+  // --- 2. DATA FETCHING ---
   const loadImages = async () => {
     setLoading(true);
     const data = await supabaseService.getImages();
@@ -76,19 +87,22 @@ const AdminDashboard: React.FC = () => {
     if (activeTab === 'activity' && isSuperAdmin) loadLogs();
   }, [activeTab, isSuperAdmin]);
 
-  // --- 3. HANDLERS ---
-  
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
-    else if (e.type === "dragleave") setDragActive(false);
-  };
+  // --- 3. FILTERED LOGS LOGIC ---
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchesAdmin = filterAdmin === 'All' || log.admin_email === filterAdmin;
+      const matchesAction = filterAction === 'All' || log.action === filterAction;
+      return matchesAdmin && matchesAction;
+    });
+  }, [logs, filterAdmin, filterAction]);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-  };
+  // Get unique admin emails for the dropdown
+  const uniqueAdmins = Array.from(new Set(logs.map(l => l.admin_email)));
+
+  // --- HANDLERS ---
+  
+  const handleDrag = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if (e.type === "dragenter" || e.type === "dragover") setDragActive(true); else if (e.type === "dragleave") setDragActive(false); };
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +115,12 @@ const AdminDashboard: React.FC = () => {
       setFile(null); setPrompt(''); setTags(''); setCategory(CATEGORIES[1]);
       alert('Upload Successful!');
       setActiveTab('manage');
+      
+      // Refresh Stats
+      if (isSuperAdmin) {
+        const newStats = await supabaseService.getStats();
+        if(newStats) setStats(newStats);
+      }
     } catch (err: any) {
       alert(err.message || "Upload failed");
     } finally {
@@ -108,37 +128,25 @@ const AdminDashboard: React.FC = () => {
     }
   };
   
-    const handleSaveEdit = async (updatedImage: ImageItem) => {
+  const handleSaveEdit = async (updatedImage: ImageItem) => {
     try {
-      // UPDATED: Use the service function so it logs the 'EDIT' action
       await supabaseService.updateImage(updatedImage);
-
-      // Update local state to reflect changes immediately in the UI
       setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
     } catch (err: any) {
       alert('Update failed: ' + err.message);
     }
   };
 
-
-  /* const handleSaveEdit = async (updatedImage: ImageItem) => {
-    try {
-      const { error } = await supabase.from('images').update({
-          prompt: updatedImage.prompt, category: updatedImage.category,
-          tags: updatedImage.tags, is_featured: updatedImage.is_featured
-        }).eq('id', updatedImage.id);
-
-      if (error) throw error;
-      setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
-    } catch (err: any) {
-      alert('Update failed: ' + err.message);
-    }
-  }; */
-
   const handleDelete = async (id: string) => {
     try {
       await supabaseService.deleteImage(id);
       setImages(images.filter(img => img.id !== id));
+      
+      // Refresh Stats
+      if (isSuperAdmin) {
+        const newStats = await supabaseService.getStats();
+        if(newStats) setStats(newStats);
+      }
     } catch (err: any) {
       alert('Delete failed: ' + err.message);
     }
@@ -160,41 +168,53 @@ const AdminDashboard: React.FC = () => {
           </div>
           
           <div className="flex bg-surfaceHighlight p-1 rounded-lg overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('manage')}
-              className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'manage' ? 'bg-surface text-textPrimary shadow' : 'text-textSecondary hover:text-textPrimary'}`}
-            >
+            <button onClick={() => setActiveTab('manage')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'manage' ? 'bg-surface text-textPrimary shadow' : 'text-textSecondary hover:text-textPrimary'}`}>
               <Grid size={18} /> Manage
             </button>
-            <button
-              onClick={() => setActiveTab('upload')}
-              className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'upload' ? 'bg-accent text-white font-medium shadow' : 'text-textSecondary hover:text-textPrimary'}`}
-            >
+            <button onClick={() => setActiveTab('upload')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'upload' ? 'bg-accent text-white font-medium shadow' : 'text-textSecondary hover:text-textPrimary'}`}>
               <Upload size={18} /> Upload
             </button>
-            
-            {/* SUPER ADMIN TAB - Only visible if checkUser succeeds */}
             {isSuperAdmin && (
-              <button
-                onClick={() => setActiveTab('activity')}
-                className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'activity' ? 'bg-purple-600 text-white shadow' : 'text-textSecondary hover:text-purple-400'}`}
-              >
+              <button onClick={() => setActiveTab('activity')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'activity' ? 'bg-purple-600 text-white shadow' : 'text-textSecondary hover:text-purple-400'}`}>
                 <Activity size={18} /> Activity Log
               </button>
             )}
           </div>
         </div>
 
+        {/* --- PHASE 3: STATS CARDS (Super Admin Only) --- */}
+        {isSuperAdmin && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-surface border border-surfaceHighlight p-6 rounded-xl flex items-center gap-4 shadow-neumorphic">
+              <div className="p-3 bg-blue-500/10 text-blue-500 rounded-full"><BarChart3 size={24} /></div>
+              <div>
+                <p className="text-textSecondary text-xs uppercase font-bold tracking-wider">Total Gallery</p>
+                <p className="text-2xl font-bold text-textPrimary">{stats.total}</p>
+              </div>
+            </div>
+            <div className="bg-surface border border-surfaceHighlight p-6 rounded-xl flex items-center gap-4 shadow-neumorphic">
+              <div className="p-3 bg-green-500/10 text-green-500 rounded-full"><Users size={24} /></div>
+              <div>
+                <p className="text-textSecondary text-xs uppercase font-bold tracking-wider">My Uploads</p>
+                <p className="text-2xl font-bold text-textPrimary">{stats.mine}</p>
+              </div>
+            </div>
+            <div className="bg-surface border border-surfaceHighlight p-6 rounded-xl flex items-center gap-4 shadow-neumorphic">
+              <div className="p-3 bg-purple-500/10 text-purple-500 rounded-full"><PieChart size={24} /></div>
+              <div>
+                <p className="text-textSecondary text-xs uppercase font-bold tracking-wider">Team Contribution</p>
+                <p className="text-2xl font-bold text-textPrimary">{stats.team}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- TAB: MANAGE --- */}
         {activeTab === 'manage' && (
           <div className="space-y-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-textSecondary" size={20} />
-              <input 
-                type="text" placeholder="Search gallery..." value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-surface border border-surfaceHighlight rounded-xl py-3 pl-10 pr-4 text-textPrimary focus:outline-none focus:border-accent"
-              />
+              <input type="text" placeholder="Search gallery..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-surface border border-surfaceHighlight rounded-xl py-3 pl-10 pr-4 text-textPrimary focus:outline-none focus:border-accent" />
             </div>
 
             {loading ? (
@@ -205,13 +225,9 @@ const AdminDashboard: React.FC = () => {
                 .map((img) => (
                   <div key={img.id} className="bg-surface border border-surfaceHighlight rounded-xl overflow-hidden group relative hover:border-accent/50 transition-colors">
                     
-                    {/* SUPER ADMIN: COLORED DOT TRACKER */}
+                    {/* SUPER ADMIN: COLORED DOT */}
                     {isSuperAdmin && (
-                        <div 
-                            className="absolute top-2 left-2 z-10 w-4 h-4 rounded-full border-2 border-white shadow-md"
-                            style={{ backgroundColor: getAdminColor(img.created_by || 'unknown') }}
-                            title={`Uploaded by Admin ID: ${img.created_by || 'Unknown'}`}
-                        />
+                        <div className="absolute top-2 left-2 z-10 w-4 h-4 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: getAdminColor(img.created_by || 'unknown') }} title={`Uploaded by Admin ID: ${img.created_by || 'Unknown'}`} />
                     )}
 
                     <div className="relative h-48 bg-black">
@@ -239,12 +255,10 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-surface p-6 md:p-8 rounded-2xl shadow-neumorphic border border-surfaceHighlight">
                 <h2 className="text-xl font-bold text-textPrimary mb-6">Upload New Image</h2>
                 <form onSubmit={handleUpload} className="space-y-6">
-                    <div className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${dragActive ? 'border-accent bg-accent/10' : 'border-surfaceHighlight hover:border-textSecondary'}`}
-                        onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}>
+                    <div className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${dragActive ? 'border-accent bg-accent/10' : 'border-surfaceHighlight hover:border-textSecondary'}`} onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}>
                         <input type="file" id="file-upload" className="hidden" accept="image/*" onChange={(e) => e.target.files && setFile(e.target.files[0])} />
                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-3">
-                             {file ? <div className="text-green-500 font-medium break-all bg-green-500/10 px-4 py-2 rounded-lg">{file.name}</div> : 
-                             <><div className="bg-surfaceHighlight p-4 rounded-full text-textSecondary mb-2"><Upload size={32}/></div><p className="text-base text-textPrimary">Drag image here or <span className="text-accent hover:underline">browse</span></p></>}
+                             {file ? <div className="text-green-500 font-medium break-all bg-green-500/10 px-4 py-2 rounded-lg">{file.name}</div> : <><Upload size={32} className="text-textSecondary"/><p className="text-textPrimary">Drag or browse</p></>}
                         </label>
                     </div>
                     <div>
@@ -268,36 +282,55 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* --- TAB: ACTIVITY LOG --- */}
+        {/* --- TAB: ACTIVITY LOG (PHASE 3 FILTER UPGRADE) --- */}
         {activeTab === 'activity' && isSuperAdmin && (
             <div className="space-y-6">
-                <h2 className="text-xl font-bold text-textPrimary mb-4">Admin Activity Log</h2>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <h2 className="text-xl font-bold text-textPrimary">Activity Log</h2>
+                  
+                  {/* FILTERS */}
+                  <div className="flex gap-2">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none text-textSecondary"><Filter size={14} /></div>
+                      <select value={filterAdmin} onChange={(e) => setFilterAdmin(e.target.value)} className="bg-surface border border-surfaceHighlight text-textPrimary text-sm rounded-lg pl-8 pr-4 py-2 focus:outline-none focus:border-accent">
+                        <option value="All">All Admins</option>
+                        {uniqueAdmins.map(admin => <option key={admin} value={admin}>{admin}</option>)}
+                      </select>
+                    </div>
+                    <select value={filterAction} onChange={(e) => setFilterAction(e.target.value)} className="bg-surface border border-surfaceHighlight text-textPrimary text-sm rounded-lg px-4 py-2 focus:outline-none focus:border-accent">
+                      <option value="All">All Actions</option>
+                      <option value="UPLOAD">Upload</option>
+                      <option value="EDIT">Edit</option>
+                      <option value="DELETE">Delete</option>
+                    </select>
+                  </div>
+                </div>
+
                 {loading ? <div className="text-center py-10">Loading logs...</div> : (
-                    <div className="bg-surface rounded-xl border
-                    border-surfaceHighlight overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                    <div className="bg-surface rounded-xl border border-surfaceHighlight overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[600px]">
                             <thead className="bg-surfaceHighlight/50 border-b border-surfaceHighlight text-xs uppercase text-textSecondary">
                                 <tr>
-                                    <th className="p-4">Time</th>
-                                    <th className="p-4">Admin</th>
-                                    <th className="p-4">Action</th>
-                                    <th className="p-4">Details</th>
+                                    <th className="p-4 whitespace-nowrap">Time</th>
+                                    <th className="p-4 whitespace-nowrap">Admin</th>
+                                    <th className="p-4 whitespace-nowrap">Action</th>
+                                    <th className="p-4 min-w-[200px]">Details</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-surfaceHighlight">
-                                {logs.map(log => (
-                                    <tr key={log.id} className="hover:bg-surfaceHighlight/30">
+                                {filteredLogs.length > 0 ? filteredLogs.map(log => (
+                                    <tr key={log.id} className="hover:bg-surfaceHighlight/30 transition-colors">
                                         <td className="p-4 text-xs text-textSecondary whitespace-nowrap">
                                             {new Date(log.created_at).toLocaleString()}
                                         </td>
-                                        <td className="p-4 text-sm font-medium text-textPrimary">
+                                        <td className="p-4 text-sm font-medium text-textPrimary whitespace-nowrap">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getAdminColor(log.admin_email) }}></div>
+                                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getAdminColor(log.admin_email) }}></div>
                                                 {log.admin_email}
                                             </div>
                                         </td>
-                                        <td className="p-4">
-                                            <span className={`text-xs px-2 py-1 rounded font-bold ${
+                                        <td className="p-4 whitespace-nowrap">
+                                            <span className={`text-xs px-2 py-1 rounded font-bold uppercase tracking-wider ${
                                                 log.action === 'UPLOAD' ? 'bg-green-500/10 text-green-500' :
                                                 log.action === 'DELETE' ? 'bg-red-500/10 text-red-500' :
                                                 'bg-blue-500/10 text-blue-500'
@@ -305,13 +338,16 @@ const AdminDashboard: React.FC = () => {
                                                 {log.action}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-sm text-textSecondary">{log.details}</td>
+                                        <td className="p-4 text-sm text-textSecondary break-words min-w-[200px]">
+                                            {log.details}
+                                        </td>
                                     </tr>
-                                ))}
+                                )) : (
+                                  <tr><td colSpan={4} className="p-8 text-center text-textSecondary">No logs found matching filters.</td></tr>
+                                )}
                             </tbody>
                         </table>
-                        {logs.length === 0 && <div className="p-8 text-center text-textSecondary">No activity recorded yet.</div>}
-                    </div>
+                      </div>
                 )}
             </div>
         )}
