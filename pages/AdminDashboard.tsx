@@ -128,14 +128,29 @@ const AdminDashboard: React.FC = () => {
     }
   };
   
-  const handleSaveEdit = async (updatedImage: ImageItem) => {
+    const handleSaveEdit = async (updatedImage: ImageItem, newFile?: File) => {
+    try {
+      // Pass the updated data AND the new file (if any) to the service
+      const savedImage = await supabaseService.updateImage(updatedImage, newFile);
+
+      // Update local state with the returned image (which has the new URL if replaced)
+      setImages(images.map(img => img.id === savedImage.id ? savedImage : img));
+      
+      alert('Update Successful!');
+    } catch (err: any) {
+      alert('Update failed: ' + err.message);
+    }
+  };
+
+  
+  /* const handleSaveEdit = async (updatedImage: ImageItem) => {
     try {
       await supabaseService.updateImage(updatedImage);
       setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
     } catch (err: any) {
       alert('Update failed: ' + err.message);
     }
-  };
+  }; */
 
   const handleDelete = async (id: string) => {
     try {

@@ -68,19 +68,19 @@ export class SupabaseService {
     return data as ImageItem;
   }
 
-  // --- NEW: Get Audit Logs (For Super Admin) ---
+  // --- Audit Logs (For Super Admin) ---
   async getAuditLogs(): Promise<AuditLog[]> {
     const { data, error } = await supabase
       .from('audit_logs')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(50); // Show last 50 actions
+      .limit(50); 
 
     if (error) throw error;
     return data || [];
   }
   
-    // --- NEW: Dashboard Stats ---
+  // --- Dashboard Stats ---
   async getStats() {
     const user = await this.getCurrentUser();
     if (!user) return null;
@@ -115,7 +115,7 @@ export class SupabaseService {
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('prompts-images') // Keeping your bucket name 'prompts-images'
+      .from('prompts-images')
       .upload(filePath, file);
 
     if (uploadError) throw uploadError;
@@ -125,7 +125,7 @@ export class SupabaseService {
       .from('prompts-images')
       .getPublicUrl(filePath);
 
-    // 3. Insert into Database (With created_by ID)
+    // 3. Insert into Database
     const { data, error: insertError } = await supabase
       .from('images')
       .insert([
@@ -135,9 +135,9 @@ export class SupabaseService {
           prompt,
           category,
           tags,
-          width: 800, // Default width
-          height: 600, // Default height
-          created_by: user.id // TRACKING: Save the Admin ID
+          width: 800,
+          height: 600,
+          created_by: user.id
         }
       ])
       .select()
@@ -151,31 +151,67 @@ export class SupabaseService {
     return data as ImageItem;
   }
 
-  // --- NEW: Update Image with Logging ---
-  async updateImage(image: ImageItem): Promise<void> {
-    const { error } = await supabase
+  // --- UPDATED: Update Image (Supports optional File Replacement) ---
+  async updateImage(image: ImageItem, newFile?: File): Promise<ImageItem> {
+    let finalUrl = image.url;
+    let finalThumbnail = image.thumbnail;
+
+    // 1. If a new file is provided, upload it and replace the URL
+    if (newFile) {
+      const user = await this.getCurrentUser();
+      if (!user) throw new Error("User must be logged in to replace image");
+
+      const fileExt = newFile.name.split('.').pop();
+      const fileName = `${Date.now()}-replaced-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('prompts-images')
+        .upload(filePath, newFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('prompts-images')
+        .getPublicUrl(filePath);
+
+      finalUrl = publicUrl;
+      finalThumbnail = publicUrl;
+
+      // Log the specific replacement action
+      await logActivity('REPLACE_IMAGE', `Replaced file for image ID: ${image.id.slice(0, 4)}...`);
+    }
+
+    // 2. Update Database (Metadata + URL if changed)
+    const { data, error } = await supabase
       .from('images')
       .update({
         prompt: image.prompt,
         category: image.category,
         tags: image.tags,
-        is_featured: image.is_featured
+        is_featured: image.is_featured,
+        url: finalUrl,
+        thumbnail: finalThumbnail
       })
-      .eq('id', image.id);
+      .eq('id', image.id)
+      .select()
+      .single();
 
     if (error) throw error;
 
-    // Log Edit
-    await logActivity('EDIT', `Edited details for image ID: ${image.id.slice(0, 4)}...`);
+    // Only log "EDIT" if we didn't already log "REPLACE_IMAGE"
+    if (!newFile) {
+       await logActivity('EDIT', `Edited details for image ID: ${image.id.slice(0, 4)}...`);
+    }
+
+    return data as ImageItem;
   }
 
   // --- Delete with Tracking ---
   async deleteImage(id: string): Promise<void> {
-    // 1. Get the image URL to find the storage path
     const item = await this.getImageById(id);
     if (!item) return;
 
-    // Extract filename from URL
     const urlParts = item.url.split('/');
     const fileName = urlParts[urlParts.length - 1];
 
@@ -183,7 +219,6 @@ export class SupabaseService {
        await supabase.storage.from('prompts-images').remove([fileName]);
     }
 
-    // 2. Delete from DB
     const { error } = await supabase
       .from('images')
       .delete()
@@ -191,7 +226,6 @@ export class SupabaseService {
 
     if (error) throw error;
 
-    // 3. LOG IT
     await logActivity('DELETE', `Deleted image ID: ${id.slice(0, 8)}`);
   }
 }
