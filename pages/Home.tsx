@@ -150,6 +150,16 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
+      <section className="max-w-4xl mx-auto px-4 text-center mb-8 mt-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-textPrimary mb-3">
+          Discover the Best AI Art Prompts
+        </h1>
+        <p className="text-textSecondary text-sm md:text-base leading-relaxed">
+          Browse our extensive gallery of high-quality AI-generated images. 
+          Copy exact prompts for Gemini Nano Banana, Midjourney, Stable Diffusion, and DALL-E to recreate 
+          stunning styles in Anime, Cyberpunk, 3D Render, and Photorealistic aesthetics.
+        </p>
+      </section>
 
       <section className="max-w-7xl mx-auto min-h-[50vh]">
         <GalleryGrid images={filteredImages} loading={loading} />

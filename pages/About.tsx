@@ -2,27 +2,31 @@ import React from 'react';
 
 const About: React.FC = () => {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-16">
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-6">Unleashing Creativity</h1>
-        <p className="text-xl text-textSecondary max-w-2xl mx-auto">
-          ProGall is more than just a gallery. It's a curated collection of AI-driven imagination, designed to inspire your next masterpiece.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background pt-24 pb-20 px-6">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-4xl font-bold text-textPrimary mb-8">About ProGall</h1>
+        
+        <div className="bg-surface border border-surfaceHighlight rounded-2xl p-8 md:p-12 shadow-neumorphic space-y-6 text-textSecondary text-lg leading-relaxed">
+          <p>
+            Welcome to <strong className="text-textPrimary">ProGall</strong>, the premier destination for digital artists, designers, and creators seeking high-quality AI art prompts.
+          </p>
 
-      <div className="grid md:grid-cols-2 gap-12 items-center">
-        <div className="space-y-6 text-textSecondary text-lg leading-relaxed">
+          <h2 className="text-2xl font-semibold text-textPrimary mt-6">Our Mission</h2>
           <p>
-            In the age of Artificial Intelligence, the right prompt can change everything. We built ProGall to help artists, designers, and dreamers bridge the gap between idea and reality.
+            In the age of Artificial Intelligence, the "Prompt" is the new paintbrush. Our mission is to curate, categorize, and share the most effective prompts for tools like Midjourney, Stable Diffusion, and DALL-E. We believe that by sharing exact prompt engineering data, we can help the community learn and create stunning visuals faster.
           </p>
+
+          <h2 className="text-2xl font-semibold text-textPrimary mt-6">What We Offer</h2>
+          <ul className="list-disc pl-6 space-y-2">
+            <li><strong>Curated Gallery:</strong> A hand-picked selection of high-resolution AI generations.</li>
+            <li><strong>Exact Prompts:</strong> We provide the exact text inputs used to generate every image.</li>
+            <li><strong>Style Guides:</strong> Categories ranging from Cyberpunk and Anime to Realistic Portraiture.</li>
+          </ul>
+
+          <h2 className="text-2xl font-semibold text-textPrimary mt-6">The Creator</h2>
           <p>
-            Whether you are looking for cyberpunk landscapes, hyper-realistic portraits, or abstract concepts, our constantly updated library provides the exact words you need to generate stunning visuals.
+            ProGall was built by a passionate developer and AI enthusiast dedicated to building tools for the next generation of art.
           </p>
-        </div>
-        <div className="bg-surfaceHighlight rounded-2xl p-8 border border-white/5 shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
-          <div className="aspect-video bg-gradient-to-br from-accent/20 to-purple-500/20 rounded-xl flex items-center justify-center">
-            <span className="text-accent font-bold text-xl">Where Ideas Begin</span>
-          </div>
         </div>
       </div>
     </div>
