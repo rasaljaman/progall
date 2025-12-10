@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ImageItem } from '../types';
 import { Link } from 'react-router-dom';
+import { MoreVertical, Copy, Sparkles, Download, Share2 } from 'lucide-react';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -8,38 +9,105 @@ interface ImageCardProps {
 
 const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 1. Close menu if clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 2. Handle Menu Actions
+  const handleAction = (action: string, e: React.MouseEvent) => {
+    e.preventDefault(); // Stop clicking through to the image detail page
+    setShowMenu(false);
+
+    if (action === 'copy') {
+      navigator.clipboard.writeText(image.prompt);
+      alert('Prompt copied!'); 
+    }
+    if (action === 'remix') {
+       const newTab = window.open('https://gemini.google.com/app', '_blank');
+       navigator.clipboard.writeText(image.prompt);
+       if(!newTab) alert("Pop-up blocked. Copying prompt instead.");
+    }
+    if (action === 'share') {
+      if (navigator.share) {
+        navigator.share({ title: 'ProGall Art', text: image.prompt, url: window.location.href + 'image/' + image.id });
+      } else {
+        navigator.clipboard.writeText(window.location.href + 'image/' + image.id);
+        alert('Link copied!');
+      }
+    }
+    if (action === 'download') {
+      window.open(image.url, '_blank');
+    }
+  };
 
   return (
-    <div className="mb-4 break-inside-avoid">
+    <div className="mb-4 break-inside-avoid relative group">
       <Link 
         to={`/image/${image.id}`} 
-        // Added 'bg-surfaceHighlight': Keeps a gray box visible before image loads
-        className="block group relative overflow-hidden rounded-xl bg-surfaceHighlight shadow-card hover:shadow-2xl transition-all duration-300"
+        className="block relative overflow-hidden rounded-xl bg-surfaceHighlight shadow-card hover:shadow-2xl transition-all duration-300"
       >
-        
-        {/* 1. Loading Skeleton (Pulsing Effect) */}
+        {/* Loading Skeleton */}
         {!isLoaded && (
-          <div className="absolute inset-0 z-0 bg-surfaceHighlight animate-pulse flex items-center justify-center">
-             {/* Optional: You could add a small logo or icon here */}
-          </div>
+          <div className="absolute inset-0 z-0 bg-surfaceHighlight animate-pulse flex items-center justify-center" />
         )}
 
-        {/* 2. The Image */}
+        {/* The Image */}
         <img
-          src={image.url}
+          src={image.thumbnail || image.url}
           alt={image.prompt}
           loading="lazy"
           onLoad={() => setIsLoaded(true)}
-          // Logic: Start invisible (opacity-0), then fade in (opacity-100)
           className={`w-full h-auto object-cover transform transition-all duration-700 ease-in-out relative z-10
             ${isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm'}
-            group-hover:scale-105
           `}
         />
 
-        {/* 3. Hover Overlay */}
-        <div className="absolute inset-0 z-20 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        {/* Hover Gradient Overlay */}
+        <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </Link>
+
+      {/* --- 3-DOT MENU BUTTON (Bottom Right) --- */}
+      <div className="absolute bottom-2 right-2 z-30" ref={menuRef}>
+        <button 
+          onClick={(e) => { e.preventDefault(); setShowMenu(!showMenu); }}
+          className={`p-2 rounded-full backdrop-blur-md border transition-all duration-200 shadow-lg
+            ${showMenu ? 'bg-accent text-white border-accent' : 
+            'bg-black/30 text-white border-white/20 opacity-70 group-hover:opacity-100 hover:bg-black/50'}
+          `}
+        >
+          <MoreVertical size={16} />
+        </button>
+
+        {/* POPUP MENU */}
+        {showMenu && (
+          <div className="absolute bottom-full right-0 mb-2 w-48 bg-surface border border-surfaceHighlight rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+            <div className="py-1">
+              <button onClick={(e) => handleAction('copy', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 transition-colors">
+                <Copy size={14} /> Copy Prompt
+              </button>
+              <button onClick={(e) => handleAction('remix', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 transition-colors">
+                <Sparkles size={14} className="text-purple-500" /> Remix (Gemini)
+              </button>
+              <button onClick={(e) => handleAction('download', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 transition-colors">
+                <Download size={14} /> Download
+              </button>
+              <button onClick={(e) => handleAction('share', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 border-t border-surfaceHighlight transition-colors">
+                <Share2 size={14} /> Share
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

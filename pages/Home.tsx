@@ -1,43 +1,93 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Carousel from '../components/Carousel';
 import GalleryGrid from '../components/GalleryGrid';
 import { ImageItem, SortOption } from '../types';
 import { supabaseService } from '../services/supabaseService';
-import { Search, Filter, ArrowDownUp } from 'lucide-react';
+import { Search, Filter, ArrowDownUp, Clock, X } from 'lucide-react';
 
 const Home: React.FC = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // --- SEARCH 2.0 STATE ---
+  const [inputValue, setInputValue] = useState(''); // Immediate text
+  const [debouncedQuery, setDebouncedQuery] = useState(''); // Delayed query (for filtering)
+  const [isSearching, setIsSearching] = useState(false); // For spinner
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [dynamicCategories, setDynamicCategories] = useState<string[]>(['All']);
 
-  // --- 1. SMART SCROLL STATE ---
+  // Scroll State
   const [showControls, setShowControls] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // --- 2. SCROLL LISTENER ---
+  // --- 1. Load History on Mount ---
+  useEffect(() => {
+    const saved = localStorage.getItem('searchHistory');
+    if (saved) setSearchHistory(JSON.parse(saved));
+  }, []);
+
+  // --- 2. Debounce Logic (Anti-Lag) ---
+  useEffect(() => {
+    if (inputValue !== debouncedQuery) {
+      setIsSearching(true);
+      const timer = setTimeout(() => {
+        setDebouncedQuery(inputValue);
+        setIsSearching(false);
+      }, 500); // Wait 500ms
+      return () => clearTimeout(timer);
+    }
+  }, [inputValue, debouncedQuery]);
+
+  // --- 3. History Helper ---
+  const addToHistory = (query: string) => {
+    if (!query.trim()) return;
+    const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 5);
+    setSearchHistory(newHistory);
+    localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+  };
+
+  const handleSearchSelect = (query: string) => {
+    setInputValue(query);
+    setDebouncedQuery(query);
+    setShowHistory(false);
+    addToHistory(query);
+  };
+
+  // Close history on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowHistory(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // --- 4. Scroll Logic ---
   useEffect(() => {
     const controlControls = () => {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY;
-        
-        // Hide if scrolling DOWN and not at the very top (past 100px)
+        // Hide if scrolling DOWN and not at the very top
         if (currentScrollY > lastScrollY && currentScrollY > 100) {
           setShowControls(false);
         } else {
-          // Show if scrolling UP
           setShowControls(true);
         }
         setLastScrollY(currentScrollY);
       }
     };
-
     window.addEventListener('scroll', controlControls);
     return () => window.removeEventListener('scroll', controlControls);
   }, [lastScrollY]);
 
+  // --- 5. Fetch Data ---
   useEffect(() => {
     const fetchImages = async () => {
       setLoading(true);
@@ -63,10 +113,11 @@ const Home: React.FC = () => {
     return featured.length > 0 ? featured : images.slice(0, 5);
   }, [images]);
 
+  // --- 6. Filtering (Uses debouncedQuery) ---
   const filteredImages = useMemo(() => {
     let result = [...images];
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedQuery) {
+      const q = debouncedQuery.toLowerCase();
       result = result.filter(
         (img) => img.prompt.toLowerCase().includes(q) || img.tags.some((tag) => tag.toLowerCase().includes(q))
       );
@@ -80,7 +131,7 @@ const Home: React.FC = () => {
         result.sort((a, b) => (a.created_at || a.id).localeCompare(b.created_at || b.id));
     }
     return result;
-  }, [images, searchQuery, selectedCategory, sortOption]);
+  }, [images, debouncedQuery, selectedCategory, sortOption]);
 
   return (
     <div className="min-h-screen pb-10">
@@ -95,8 +146,19 @@ const Home: React.FC = () => {
         )}
       </section>
 
-      {/* --- CONTROLS SECTION (Search, Filter, Sort) --- */}
-      {/* Logic: Sticky at top-16 (below navbar). If showControls is false, slide it up (-translate-y) and hide it */}
+      {/* SEO Text (Moved up slightly for better visibility) */}
+      <section className="max-w-4xl mx-auto px-4 text-center mb-6 mt-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-textPrimary mb-3">
+          Discover the Best AI Art Prompts
+        </h1>
+        <p className="text-textSecondary text-sm md:text-base leading-relaxed">
+          Browse our extensive gallery of high-quality AI-generated images. 
+          Copy exact prompts for Midjourney, Stable Diffusion, and DALL-E to recreate 
+          stunning styles in Anime, Cyberpunk, 3D Render, and Photorealistic aesthetics.
+        </p>
+      </section>
+
+      {/* --- SMART CONTROLS SECTION --- */}
       <section 
         className={`sticky top-16 z-40 bg-surface/95 backdrop-blur py-4 px-4 border-b border-surfaceHighlight mb-6 transition-all duration-300 ease-in-out ${
           showControls 
@@ -106,8 +168,8 @@ const Home: React.FC = () => {
       >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between">
           
+          {/* Filters Row */}
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
-             {/* Filter Dropdown */}
              <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
                 <Filter size={16} className="ml-2 mr-2 text-textSecondary"/>
                 <select 
@@ -121,7 +183,6 @@ const Home: React.FC = () => {
                 </select>
              </div>
 
-             {/* Sort Dropdown */}
              <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
                 <ArrowDownUp size={16} className="ml-2 mr-2 text-textSecondary"/>
                 <select 
@@ -135,30 +196,43 @@ const Home: React.FC = () => {
              </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative w-full md:w-96 group">
+          {/* SEARCH BAR 2.0 */}
+          <div className="relative w-full md:w-96 group" ref={searchContainerRef}>
             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-textSecondary group-focus-within:text-accent transition-colors">
-              <Search size={18} />
+              {/* Spinner while debouncing */}
+              {isSearching ? <div className="animate-spin h-4 w-4 border-2 border-accent border-t-transparent rounded-full"/> : <Search size={18} />}
             </div>
+            
             <input
               type="text"
               placeholder="Search prompts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface border border-surfaceHighlight text-textPrimary rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-textSecondary"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onFocus={() => setShowHistory(true)}
+              onKeyDown={(e) => e.key === 'Enter' && addToHistory(inputValue)}
+              className="w-full bg-surface border border-surfaceHighlight text-textPrimary rounded-lg pl-10 pr-10 py-2 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-textSecondary"
             />
+            
+            {/* Clear Button */}
+            {inputValue && (
+               <button onClick={() => { setInputValue(''); setDebouncedQuery(''); }} className="absolute inset-y-0 right-3 flex items-center text-textSecondary hover:text-textPrimary">
+                  <X size={16} />
+               </button>
+            )}
+
+            {/* SEARCH HISTORY DROPDOWN */}
+            {showHistory && searchHistory.length > 0 && !inputValue && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-surfaceHighlight rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-3 py-2 text-xs font-bold text-textSecondary bg-surfaceHighlight/50 uppercase">Recent Searches</div>
+                {searchHistory.map((term, i) => (
+                  <button key={i} onClick={() => handleSearchSelect(term)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 border-b border-surfaceHighlight last:border-0 transition-colors">
+                    <Clock size={14} className="text-textSecondary" /> {term}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </section>
-      <section className="max-w-4xl mx-auto px-4 text-center mb-8 mt-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-textPrimary mb-3">
-          Discover the Best AI Art Prompts
-        </h1>
-        <p className="text-textSecondary text-sm md:text-base leading-relaxed">
-          Browse our extensive gallery of high-quality AI-generated images. 
-          Copy exact prompts for Gemini Nano Banana, Midjourney, Stable Diffusion, and DALL-E to recreate 
-          stunning styles in Anime, Cyberpunk, 3D Render, and Photorealistic aesthetics.
-        </p>
       </section>
 
       <section className="max-w-7xl mx-auto min-h-[50vh]">
