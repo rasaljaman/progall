@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async'; // Import SEO Library
+import { Helmet } from 'react-helmet-async';
 import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem } from '../types';
 import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react';
-import { getAdminColor } from '../constants'; // Import for Admin Dots
+import { getAdminColor } from '../constants'; 
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
+import { useToast } from '../context/ToastContext';
 
 const ImageDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,7 @@ const ImageDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -40,7 +42,6 @@ const ImageDetail: React.FC = () => {
 
       setImage(currentImg);
 
-      // Smart Sort for Related Images
       const { data: allImages } = await supabase
         .from('images')
         .select('*')
@@ -79,18 +80,21 @@ const ImageDetail: React.FC = () => {
   const handleCopy = () => {
     if (image) {
       navigator.clipboard.writeText(image.prompt);
-      alert('Prompt copied!');
+      showToast('Prompt copied successfully! 🎨');
     }
   };
   
   const handleGeminiRemix = () => {
     if (image) {
-      // Open immediately to bypass blockers, then copy
+      
       const newTab = window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
+        .then(() => {
+           
+           showToast('Prompt copied! Paste it in Gemini.');
+        })
         .catch((err) => {
-           console.error("Copy failed", err);
-           if(newTab) alert("Please copy the prompt manually.");
+           if(newTab) showToast('Please copy prompt manually', 'error');
         });
     }
   };
@@ -111,18 +115,17 @@ const ImageDetail: React.FC = () => {
   
   const handleSaveEdit = async (updatedImage: ImageItem) => {
     try {
-      // Use service to ensure logging
       await supabaseService.updateImage(updatedImage);
       setImage(updatedImage);
+      showToast('Image details updated successfully!');
     } catch (err) {
-      console.error('Failed to update', err);
-      alert('Failed to save changes.');
+      showToast('Failed to save changes', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this image permanently?')) {
-        await supabaseService.deleteImage(id); // Use service for logging
+        await supabaseService.deleteImage(id); 
         navigate('/');
     }
   };

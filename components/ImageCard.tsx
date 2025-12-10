@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ImageItem } from '../types';
 import { Link } from 'react-router-dom';
 import { MoreVertical, Copy, Sparkles, Download, Share2 } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -11,6 +12,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { showToast } = useToast();
 
   // 1. Close menu if clicking outside
   useEffect(() => {
@@ -30,19 +32,22 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
 
     if (action === 'copy') {
       navigator.clipboard.writeText(image.prompt);
-      alert('Prompt copied!'); 
+      showToast('Prompt copied to clipboard! ✨');
     }
     if (action === 'remix') {
        const newTab = window.open('https://gemini.google.com/app', '_blank');
        navigator.clipboard.writeText(image.prompt);
-       if(!newTab) alert("Pop-up blocked. Copying prompt instead.");
+       if(!newTab) {
+         showToast('Popup blocked. Prompt copied anyway!', 'error');
+       }else {
+         showToast('Opening Gemini... Prompt copied!');}
     }
     if (action === 'share') {
       if (navigator.share) {
         navigator.share({ title: 'ProGall Art', text: image.prompt, url: window.location.href + 'image/' + image.id });
       } else {
         navigator.clipboard.writeText(window.location.href + 'image/' + image.id);
-        alert('Link copied!');
+        showToast('Link copied to clipboard!');
       }
     }
     if (action === 'download') {
@@ -76,7 +81,6 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </Link>
 
-      {/* --- 3-DOT MENU BUTTON (Bottom Right) --- */}
       <div className="absolute bottom-2 right-2 z-30" ref={menuRef}>
         <button 
           onClick={(e) => { e.preventDefault(); setShowMenu(!showMenu); }}
