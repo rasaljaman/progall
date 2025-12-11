@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { ImageItem, AuditLog } from '../types';
+// 1. IMPORT COMPRESSION LIBRARY
+import imageCompression from 'browser-image-compression';
 
 // Initialize the client
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
@@ -14,6 +16,32 @@ const logActivity = async (action: string, details: string) => {
     await supabase.from('audit_logs').insert([
       { admin_email: user.email, action, details }
     ]);
+  }
+};
+
+// --- HELPER: SMART COMPRESSION ---
+const compressFile = async (file: File): Promise<File> => {
+  // Settings: Resize to HD (1920px) and cap size at ~200KB
+  const options = {
+    maxSizeMB: 0.2,          // Target 200KB
+    maxWidthOrHeight: 1920,  // HD Resolution (Perfect for web)
+    useWebWorker: true,      // Run in background (No lag)
+    fileType: 'image/webp'   // Force WebP (Best for bandwidth)
+  };
+
+  try {
+    console.log(`Original: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+    const compressedBlob = await imageCompression(file, options);
+    
+    // Create new file with .webp extension
+    const newName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+    const compressedFile = new File([compressedBlob], newName, { type: 'image/webp' });
+    
+    console.log(`Compressed: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+    return compressedFile;
+  } catch (error) {
+    console.error("Compression failed, using original file:", error);
+    return file; // Fallback to original if compression fails
   }
 };
 
@@ -104,39 +132,42 @@ export class SupabaseService {
   }
 
 
-  // --- Upload with Tracking ---
+  // --- SMART UPLOAD with Compression ---
   async uploadImage(file: File, prompt: string, category: string, tags: string[]): Promise<ImageItem> {
     const user = await this.getCurrentUser();
     if (!user) throw new Error("User must be logged in to upload");
 
-    // 1. Upload to Storage
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    // 1. AUTO-COMPRESS
+    const finalFile = await compressFile(file);
+
+    // 2. Upload to Storage
+    // Note: We use .webp extension now because compressFile forces WebP
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.webp`;
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('prompts-images')
-      .upload(filePath, file);
+      .upload(filePath, finalFile);
 
     if (uploadError) throw uploadError;
 
-    // 2. Get Public URL
+    // 3. Get Public URL
     const { data: { publicUrl } } = supabase.storage
       .from('prompts-images')
       .getPublicUrl(filePath);
 
-    // 3. Insert into Database
+    // 4. Insert into Database
     const { data, error: insertError } = await supabase
       .from('images')
       .insert([
         {
           url: publicUrl,
-          thumbnail: publicUrl,
+          thumbnail: publicUrl, // We use the same compressed image for thumbnail
           prompt,
           category,
           tags,
-          width: 800,
-          height: 600,
+          width: 1920, // Standard HD width after compression
+          height: 1080, 
           created_by: user.id
         }
       ])
@@ -145,29 +176,31 @@ export class SupabaseService {
 
     if (insertError) throw insertError;
 
-    // 4. LOG IT
+    // 5. LOG IT
     await logActivity('UPLOAD', `Uploaded image in ${category}: "${prompt.substring(0, 15)}..."`);
 
     return data as ImageItem;
   }
 
-  // --- UPDATED: Update Image (Supports optional File Replacement) ---
+  // --- SMART REPLACE with Compression ---
   async updateImage(image: ImageItem, newFile?: File): Promise<ImageItem> {
     let finalUrl = image.url;
     let finalThumbnail = image.thumbnail;
 
-    // 1. If a new file is provided, upload it and replace the URL
+    // 1. If a new file is provided, COMPRESS IT, upload it, and replace the URL
     if (newFile) {
       const user = await this.getCurrentUser();
       if (!user) throw new Error("User must be logged in to replace image");
 
-      const fileExt = newFile.name.split('.').pop();
-      const fileName = `${Date.now()}-replaced-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      // Auto-Compress Replacement
+      const finalFile = await compressFile(newFile);
+
+      const fileName = `${Date.now()}-replaced-${Math.random().toString(36).substring(2)}.webp`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('prompts-images')
-        .upload(filePath, newFile);
+        .upload(filePath, finalFile);
 
       if (uploadError) throw uploadError;
 
