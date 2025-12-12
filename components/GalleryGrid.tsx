@@ -5,6 +5,7 @@ import ImageCard from './ImageCard';
 import './masonry.css'; 
 import ImageCardSkeleton from './ImageCardSkeleton';
 import { ChevronDown } from 'lucide-react';
+import ScrollReveal from './ScrollReveal'; // Import the new component
 
 interface GalleryGridProps {
   images: ImageItem[];
@@ -12,7 +13,6 @@ interface GalleryGridProps {
 }
 
 const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
-  // 1. State for Pagination (Start with 20)
   const [visibleCount, setVisibleCount] = useState(20);
 
   const showMore = () => {
@@ -20,13 +20,12 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
   };
 
   const breakpointColumnsObj = {
-    default: 4,    // 4 columns on large screens
-    1100: 3,       // 3 columns on standard laptops
-    700: 2,        // 2 columns on tablets/large phones
-    500: 1         // 1 column on mobile
+    default: 4,
+    1100: 3,
+    700: 2,
+    500: 1
   };
   
-  // 2. LOADING STATE
   if (loading) {
     return (
       <div className="px-4 pb-10">
@@ -43,7 +42,6 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
     );
   }
 
-  // 3. EMPTY STATE
   if (images.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -52,10 +50,8 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
     );
   }
 
-  // 4. SLICE DATA FOR PAGINATION
   const visibleImages = images.slice(0, visibleCount);
 
-  // 5. MAIN RENDER
   return (
     <div className="px-4 pb-20">
       <Masonry
@@ -63,21 +59,26 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
         className="my-masonry-grid"
         columnClassName="my-masonry-grid_column"
       >
-        {visibleImages.map((image) => (
-          <ImageCard key={image.id} image={image} />
+        {visibleImages.map((image, index) => (
+          // WRAP IMAGE CARD IN SCROLL REVEAL
+          // We apply the layout classes (mb-4, break-inside-avoid) here instead of inside ImageCard
+          <ScrollReveal key={image.id} className="mb-4 break-inside-avoid" delay={index % 4 * 50}> 
+            <ImageCard image={image} />
+          </ScrollReveal>
         ))}
       </Masonry>
 
-      {/* 6. SHOW MORE BUTTON */}
       {visibleCount < images.length && (
         <div className="mt-12 flex justify-center w-full">
-          <button 
-            onClick={showMore}
-            className="group flex items-center gap-2 px-8 py-3 bg-surface border border-surfaceHighlight rounded-full text-textPrimary font-medium hover:border-accent hover:text-accent transition-all shadow-neumorphic"
-          >
-            Show More
-            <ChevronDown size={18} className="group-hover:translate-y-1 transition-transform" />
-          </button>
+          <ScrollReveal>
+            <button 
+                onClick={showMore}
+                className="group flex items-center gap-2 px-8 py-3 bg-surface border border-surfaceHighlight rounded-full text-textPrimary font-medium hover:border-accent hover:text-accent transition-all shadow-neumorphic active:scale-95"
+            >
+                Show More
+                <ChevronDown size={18} className="group-hover:translate-y-1 transition-transform" />
+            </button>
+          </ScrollReveal>
         </div>
       )}
     </div>

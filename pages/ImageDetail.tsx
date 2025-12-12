@@ -1,3 +1,4 @@
+// ... imports (Keep existing imports)
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -86,11 +87,9 @@ const ImageDetail: React.FC = () => {
   
   const handleGeminiRemix = () => {
     if (image) {
-      
       const newTab = window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
         .then(() => {
-           
            showToast('Prompt copied! Paste it in Gemini.');
         })
         .catch((err) => {
@@ -134,19 +133,14 @@ const ImageDetail: React.FC = () => {
   if (!image) return null;
 
   return (
-    <div className="min-h-screen pb-20 pt-6">
+    // ADDED 'page-enter' CLASS HERE
+    <div className="min-h-screen pb-20 pt-6 page-enter">
       
-      {/* SEO META TAGS */}
       <Helmet>
         <title>{image.prompt.slice(0, 60)}... | ProGall</title>
-        <meta name="description" content={`Download this AI generated ${image.category} art. Prompt: ${image.prompt.slice(0, 150)}...`} />
-        
-        {/* Social Sharing (Open Graph) */}
+        <meta name="description" content={`Download this AI generated ${image.category} art.`} />
         <meta property="og:title" content={`${image.category} AI Art | ProGall`} />
-        <meta property="og:description" content={image.prompt} />
         <meta property="og:image" content={image.thumbnail} />
-        <meta property="og:url" content={window.location.href} />
-        <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4">
@@ -161,11 +155,9 @@ const ImageDetail: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Image Column */}
           <div className="space-y-4 relative">
              <img src={image.url} alt={image.prompt} className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
              
-             {/* SUPER ADMIN DOT */}
              {isAdmin && image.created_by && (
                 <div 
                   className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10"
@@ -188,7 +180,6 @@ const ImageDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Details Column */}
           <div className="space-y-6">
             <div>
               <span className="text-accent text-sm font-bold uppercase">{image.category}</span>
@@ -221,7 +212,6 @@ const ImageDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Related Images */}
         {relatedImages.length > 0 && (
           <div className="mt-20 border-t border-surfaceHighlight pt-10">
             <h2 className="text-2xl font-bold text-textPrimary mb-8">Related to this style</h2>

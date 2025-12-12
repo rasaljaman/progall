@@ -14,7 +14,6 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
-  // 1. Close menu if clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -25,9 +24,8 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 2. Handle Menu Actions
   const handleAction = (action: string, e: React.MouseEvent) => {
-    e.preventDefault(); // Stop clicking through to the image detail page
+    e.preventDefault(); 
     setShowMenu(false);
 
     if (action === 'copy') {
@@ -39,8 +37,9 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
        navigator.clipboard.writeText(image.prompt);
        if(!newTab) {
          showToast('Popup blocked. Prompt copied anyway!', 'error');
-       }else {
-         showToast('Opening Gemini... Prompt copied!');}
+       } else {
+         showToast('Opening Gemini... Prompt copied!');
+       }
     }
     if (action === 'share') {
       if (navigator.share) {
@@ -56,17 +55,16 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   };
 
   return (
-    <div className="mb-4 break-inside-avoid relative group">
+    // REMOVED 'mb-4 break-inside-avoid' from here
+    <div className="relative group h-full">
       <Link 
         to={`/image/${image.id}`} 
         className="block relative overflow-hidden rounded-xl bg-surfaceHighlight shadow-card hover:shadow-2xl transition-all duration-300"
       >
-        {/* Loading Skeleton */}
         {!isLoaded && (
           <div className="absolute inset-0 z-0 bg-surfaceHighlight animate-pulse flex items-center justify-center" />
         )}
 
-        {/* The Image */}
         <img
           src={image.thumbnail || image.url}
           alt={image.prompt}
@@ -77,7 +75,6 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
           `}
         />
 
-        {/* Hover Gradient Overlay */}
         <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </Link>
 
@@ -86,13 +83,12 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
           onClick={(e) => { e.preventDefault(); setShowMenu(!showMenu); }}
           className={`p-2 rounded-full backdrop-blur-md border transition-all duration-200 shadow-lg
             ${showMenu ? 'bg-accent text-white border-accent' : 
-            'bg-black/30 text-white border-white/20 opacity-70 group-hover:opacity-100 hover:bg-black/50'}
+            'bg-black/30 text-white border-white/20 opacity-0 group-hover:opacity-100 hover:bg-black/50'}
           `}
         >
           <MoreVertical size={16} />
         </button>
 
-        {/* POPUP MENU */}
         {showMenu && (
           <div className="absolute bottom-full right-0 mb-2 w-48 bg-surface border border-surfaceHighlight rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
             <div className="py-1">

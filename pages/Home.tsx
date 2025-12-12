@@ -134,7 +134,7 @@ const Home: React.FC = () => {
   }, [images, debouncedQuery, selectedCategory, sortOption]);
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen pb-10 page-enter">
       
       <section className="mb-6">
         {loading ? (
