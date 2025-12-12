@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { ImageItem, AuditLog } from '../types';
-// 1. IMPORT COMPRESSION LIBRARY
-import imageCompression from 'browser-image-compression';
+import imageCompression from 'browser-image-compression'; // Phase 4: Compression
 
 // Initialize the client
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
@@ -9,7 +8,7 @@ const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- HELPER: LOG ACTIVITY TO DB ---
+// --- HELPER: LOG ACTIVITY ---
 const logActivity = async (action: string, details: string) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (user && user.email) {
@@ -19,21 +18,19 @@ const logActivity = async (action: string, details: string) => {
   }
 };
 
-// --- HELPER: SMART COMPRESSION ---
+// --- HELPER: SMART COMPRESSION (Phase 4) ---
 const compressFile = async (file: File): Promise<File> => {
-  // Settings: Resize to HD (1920px) and cap size at ~200KB
   const options = {
     maxSizeMB: 0.2,          // Target 200KB
-    maxWidthOrHeight: 1920,  // HD Resolution (Perfect for web)
-    useWebWorker: true,      // Run in background (No lag)
-    fileType: 'image/webp'   // Force WebP (Best for bandwidth)
+    maxWidthOrHeight: 1920,  // HD Resolution
+    useWebWorker: true,
+    fileType: 'image/webp'
   };
 
   try {
     console.log(`Original: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
     const compressedBlob = await imageCompression(file, options);
     
-    // Create new file with .webp extension
     const newName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
     const compressedFile = new File([compressedBlob], newName, { type: 'image/webp' });
     
@@ -41,19 +38,15 @@ const compressFile = async (file: File): Promise<File> => {
     return compressedFile;
   } catch (error) {
     console.error("Compression failed, using original file:", error);
-    return file; // Fallback to original if compression fails
+    return file; 
   }
 };
 
 export class SupabaseService {
   
   // --- Auth ---
-
   async login(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
   }
@@ -69,17 +62,13 @@ export class SupabaseService {
   }
 
   // --- Data & Storage ---
-
   async getImages(): Promise<ImageItem[]> {
     const { data, error } = await supabase
       .from('images')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching images:', error);
-      throw error;
-    }
+    if (error) throw error;
     return data as ImageItem[];
   }
 
@@ -90,13 +79,11 @@ export class SupabaseService {
       .eq('id', id)
       .single();
 
-    if (error) {
-      return undefined;
-    }
+    if (error) return undefined;
     return data as ImageItem;
   }
 
-  // --- Audit Logs (For Super Admin) ---
+  // --- LOGS: List View (Limit 50) ---
   async getAuditLogs(): Promise<AuditLog[]> {
     const { data, error } = await supabase
       .from('audit_logs')
@@ -107,18 +94,28 @@ export class SupabaseService {
     if (error) throw error;
     return data || [];
   }
+
+  // --- LOGS: Analytics View (Limit 500) - PHASE 5 NEW ---
+  async getAnalyticsLogs(): Promise<AuditLog[]> {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500); 
+
+    if (error) throw error;
+    return data || [];
+  }
   
   // --- Dashboard Stats ---
   async getStats() {
     const user = await this.getCurrentUser();
     if (!user) return null;
 
-    // 1. Total Images
     const { count: totalCount } = await supabase
       .from('images')
       .select('*', { count: 'exact', head: true });
 
-    // 2. My Uploads
     const { count: myCount } = await supabase
       .from('images')
       .select('*', { count: 'exact', head: true })
@@ -131,134 +128,85 @@ export class SupabaseService {
     };
   }
 
-
-  // --- SMART UPLOAD with Compression ---
+  // --- Upload with Compression ---
   async uploadImage(file: File, prompt: string, category: string, tags: string[]): Promise<ImageItem> {
     const user = await this.getCurrentUser();
-    if (!user) throw new Error("User must be logged in to upload");
+    if (!user) throw new Error("User must be logged in");
 
-    // 1. AUTO-COMPRESS
+    // 1. Compress
     const finalFile = await compressFile(file);
 
-    // 2. Upload to Storage
-    // Note: We use .webp extension now because compressFile forces WebP
+    // 2. Upload
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.webp`;
-    const filePath = `${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('prompts-images')
-      .upload(filePath, finalFile);
-
+    const { error: uploadError } = await supabase.storage.from('prompts-images').upload(fileName, finalFile);
     if (uploadError) throw uploadError;
 
-    // 3. Get Public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('prompts-images')
-      .getPublicUrl(filePath);
+    const { data: { publicUrl } } = supabase.storage.from('prompts-images').getPublicUrl(fileName);
 
-    // 4. Insert into Database
-    const { data, error: insertError } = await supabase
-      .from('images')
-      .insert([
-        {
-          url: publicUrl,
-          thumbnail: publicUrl, // We use the same compressed image for thumbnail
-          prompt,
-          category,
-          tags,
-          width: 1920, // Standard HD width after compression
-          height: 1080, 
-          created_by: user.id
-        }
-      ])
-      .select()
-      .single();
+    // 3. DB Insert
+    const { data, error: insertError } = await supabase.from('images').insert([{
+      url: publicUrl,
+      thumbnail: publicUrl,
+      prompt,
+      category,
+      tags,
+      width: 1920,
+      height: 1080,
+      created_by: user.id
+    }]).select().single();
 
     if (insertError) throw insertError;
-
-    // 5. LOG IT
     await logActivity('UPLOAD', `Uploaded image in ${category}: "${prompt.substring(0, 15)}..."`);
 
     return data as ImageItem;
   }
 
-  // --- SMART REPLACE with Compression ---
+  // --- Update with Replace & Compression ---
   async updateImage(image: ImageItem, newFile?: File): Promise<ImageItem> {
     let finalUrl = image.url;
-    let finalThumbnail = image.thumbnail;
 
-    // 1. If a new file is provided, COMPRESS IT, upload it, and replace the URL
     if (newFile) {
       const user = await this.getCurrentUser();
-      if (!user) throw new Error("User must be logged in to replace image");
+      if (!user) throw new Error("User must be logged in");
 
-      // Auto-Compress Replacement
+      // Compress & Upload new file
       const finalFile = await compressFile(newFile);
-
       const fileName = `${Date.now()}-replaced-${Math.random().toString(36).substring(2)}.webp`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('prompts-images')
-        .upload(filePath, finalFile);
-
+      
+      const { error: uploadError } = await supabase.storage.from('prompts-images').upload(fileName, finalFile);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('prompts-images')
-        .getPublicUrl(filePath);
-
+      const { data: { publicUrl } } = supabase.storage.from('prompts-images').getPublicUrl(fileName);
       finalUrl = publicUrl;
-      finalThumbnail = publicUrl;
 
-      // Log the specific replacement action
       await logActivity('REPLACE_IMAGE', `Replaced file for image ID: ${image.id.slice(0, 4)}...`);
     }
 
-    // 2. Update Database (Metadata + URL if changed)
-    const { data, error } = await supabase
-      .from('images')
-      .update({
-        prompt: image.prompt,
-        category: image.category,
-        tags: image.tags,
-        is_featured: image.is_featured,
-        url: finalUrl,
-        thumbnail: finalThumbnail
-      })
-      .eq('id', image.id)
-      .select()
-      .single();
+    const { data, error } = await supabase.from('images').update({
+      prompt: image.prompt,
+      category: image.category,
+      tags: image.tags,
+      is_featured: image.is_featured,
+      url: finalUrl,
+      thumbnail: finalUrl
+    }).eq('id', image.id).select().single();
 
     if (error) throw error;
-
-    // Only log "EDIT" if we didn't already log "REPLACE_IMAGE"
-    if (!newFile) {
-       await logActivity('EDIT', `Edited details for image ID: ${image.id.slice(0, 4)}...`);
-    }
+    if (!newFile) await logActivity('EDIT', `Edited details for image ID: ${image.id.slice(0, 4)}...`);
 
     return data as ImageItem;
   }
 
-  // --- Delete with Tracking ---
   async deleteImage(id: string): Promise<void> {
     const item = await this.getImageById(id);
-    if (!item) return;
-
-    const urlParts = item.url.split('/');
-    const fileName = urlParts[urlParts.length - 1];
-
-    if (fileName) {
-       await supabase.storage.from('prompts-images').remove([fileName]);
+    if (item) {
+        const urlParts = item.url.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        if (fileName) await supabase.storage.from('prompts-images').remove([fileName]);
     }
 
-    const { error } = await supabase
-      .from('images')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('images').delete().eq('id', id);
     if (error) throw error;
-
     await logActivity('DELETE', `Deleted image ID: ${id.slice(0, 8)}`);
   }
 }

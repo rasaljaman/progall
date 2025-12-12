@@ -1,27 +1,43 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Grid, Search, Edit2, Activity, Filter, BarChart3, PieChart, Users } from 'lucide-react'; 
+import { Upload, Grid, Search, Edit2, Activity, Filter, BarChart3, PieChart, Users, TrendingUp, Award, Calendar } from 'lucide-react'; 
 import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem, AuditLog } from '../types';
 import { CATEGORIES, SUPER_ADMIN_EMAIL, getAdminColor } from '../constants';
 import EditImageModal from '../components/EditImageModal';
 
+// --- TYPES FOR ANALYTICS ---
+type TimeRange = 'today' | 'week' | 'month' | 'all';
+
+interface AdminStats {
+  email: string;
+  uploads: number;
+  edits: number;
+  deletes: number;
+  total: number;
+  lastActive: string;
+}
+
 const AdminDashboard: React.FC = () => {
+  // Tabs: 'manage' | 'upload' | 'activity' | 'analytics'
   const [activeTab, setActiveTab] = useState<string>('manage');
   
   // Data State
   const [images, setImages] = useState<ImageItem[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [analyticsLogs, setAnalyticsLogs] = useState<AuditLog[]>([]); // Larger dataset for charts
   
-  // --- PHASE 3: STATS STATE ---
+  // Stats & Loading
   const [stats, setStats] = useState({ total: 0, mine: 0, team: 0 });
-  
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   
-  // --- PHASE 3: FILTER STATE ---
+  // Filters (Activity Tab)
   const [filterAdmin, setFilterAdmin] = useState('All');
   const [filterAction, setFilterAction] = useState('All');
+
+  // Analytics Controls (Phase 5)
+  const [timeRange, setTimeRange] = useState<TimeRange>('week');
   
   // Auth State
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -47,8 +63,7 @@ const AdminDashboard: React.FC = () => {
         
         if (currentEmail === superEmail) {
           setIsSuperAdmin(true);
-          
-          // --- FETCH STATS (Only for Super Admin) ---
+          // Fetch Stats (Only for Super Admin)
           try {
             const statsData = await supabaseService.getStats();
             if (statsData) setStats(statsData);
@@ -73,8 +88,16 @@ const AdminDashboard: React.FC = () => {
   const loadLogs = async () => {
     setLoading(true);
     try {
+      // Normal logs for list view (Limit 50)
       const data = await supabaseService.getAuditLogs();
       setLogs(data);
+
+      // Analytics logs for charts (Limit 500 - Only if Super Admin)
+      if (isSuperAdmin) {
+         // NOTE: Ensure 'getAnalyticsLogs' exists in your supabaseService!
+         const analyticsData = await supabaseService.getAnalyticsLogs(); 
+         setAnalyticsLogs(analyticsData);
+      }
     } catch (error) {
       console.error("Error loading logs", error);
     } finally {
@@ -84,10 +107,10 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'manage') loadImages();
-    if (activeTab === 'activity' && isSuperAdmin) loadLogs();
+    if ((activeTab === 'activity' || activeTab === 'analytics') && isSuperAdmin) loadLogs();
   }, [activeTab, isSuperAdmin]);
 
-  // --- 3. FILTERED LOGS LOGIC ---
+  // --- 3. LOGIC: FILTERED LOGS (Activity Tab) ---
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       const matchesAdmin = filterAdmin === 'All' || log.admin_email === filterAdmin;
@@ -96,11 +119,65 @@ const AdminDashboard: React.FC = () => {
     });
   }, [logs, filterAdmin, filterAction]);
 
-  // Get unique admin emails for the dropdown
   const uniqueAdmins = Array.from(new Set(logs.map(l => l.admin_email)));
 
+  // --- 4. LOGIC: ANALYTICS CALCULATIONS (Phase 5) ---
+  const analyticsData = useMemo(() => {
+    const now = new Date();
+    
+    // A. Filter by Time Range
+    const filteredByTime = analyticsLogs.filter(log => {
+      const logDate = new Date(log.created_at);
+      if (timeRange === 'today') return logDate.toDateString() === now.toDateString();
+      if (timeRange === 'week') {
+        const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7);
+        return logDate >= weekAgo;
+      }
+      if (timeRange === 'month') {
+        const monthAgo = new Date(); monthAgo.setDate(now.getDate() - 30);
+        return logDate >= monthAgo;
+      }
+      return true; // 'all'
+    });
+
+    // B. Calculate Leaderboard
+    const adminMap = new Map<string, AdminStats>();
+    filteredByTime.forEach(log => {
+      const email = log.admin_email;
+      if (!adminMap.has(email)) {
+        adminMap.set(email, { email, uploads: 0, edits: 0, deletes: 0, total: 0, lastActive: log.created_at });
+      }
+      const stats = adminMap.get(email)!;
+      stats.total++;
+      if (log.action === 'UPLOAD') stats.uploads++;
+      if (log.action === 'EDIT' || log.action === 'REPLACE_IMAGE') stats.edits++;
+      if (log.action === 'DELETE') stats.deletes++;
+      
+      // Update last active if newer
+      if (new Date(log.created_at) > new Date(stats.lastActive)) {
+          stats.lastActive = log.created_at;
+      }
+    });
+    
+    const leaderboard = Array.from(adminMap.values()).sort((a, b) => b.total - a.total);
+
+    // C. Calculate Chart Data (Activity per Day)
+    const chartMap = new Map<string, number>();
+    filteredByTime.forEach(log => {
+        const dateKey = new Date(log.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        chartMap.set(dateKey, (chartMap.get(dateKey) || 0) + 1);
+    });
+    
+    // Sort chart data (Oldest -> Newest)
+    const chartData = Array.from(chartMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .reverse();
+
+    return { leaderboard, chartData };
+  }, [analyticsLogs, timeRange]);
+
+
   // --- HANDLERS ---
-  
   const handleDrag = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if (e.type === "dragenter" || e.type === "dragover") setDragActive(true); else if (e.type === "dragleave") setDragActive(false); };
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); };
 
@@ -116,7 +193,6 @@ const AdminDashboard: React.FC = () => {
       alert('Upload Successful!');
       setActiveTab('manage');
       
-      // Refresh Stats
       if (isSuperAdmin) {
         const newStats = await supabaseService.getStats();
         if(newStats) setStats(newStats);
@@ -128,36 +204,21 @@ const AdminDashboard: React.FC = () => {
     }
   };
   
-    const handleSaveEdit = async (updatedImage: ImageItem, newFile?: File) => {
+  const handleSaveEdit = async (updatedImage: ImageItem, newFile?: File) => {
     try {
-      // Pass the updated data AND the new file (if any) to the service
-      const savedImage = await supabaseService.updateImage(updatedImage, newFile);
-
-      // Update local state with the returned image (which has the new URL if replaced)
-      setImages(images.map(img => img.id === savedImage.id ? savedImage : img));
-      
+      await supabaseService.updateImage(updatedImage, newFile);
+      setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
       alert('Update Successful!');
     } catch (err: any) {
       alert('Update failed: ' + err.message);
     }
   };
 
-  
-  /* const handleSaveEdit = async (updatedImage: ImageItem) => {
-    try {
-      await supabaseService.updateImage(updatedImage);
-      setImages(images.map(img => img.id === updatedImage.id ? updatedImage : img));
-    } catch (err: any) {
-      alert('Update failed: ' + err.message);
-    }
-  }; */
-
   const handleDelete = async (id: string) => {
     try {
       await supabaseService.deleteImage(id);
       setImages(images.filter(img => img.id !== id));
       
-      // Refresh Stats
       if (isSuperAdmin) {
         const newStats = await supabaseService.getStats();
         if(newStats) setStats(newStats);
@@ -182,7 +243,7 @@ const AdminDashboard: React.FC = () => {
             </p>
           </div>
           
-          <div className="flex bg-surfaceHighlight p-1 rounded-lg overflow-x-auto">
+          <div className="flex bg-surfaceHighlight p-1 rounded-lg overflow-x-auto no-scrollbar">
             <button onClick={() => setActiveTab('manage')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'manage' ? 'bg-surface text-textPrimary shadow' : 'text-textSecondary hover:text-textPrimary'}`}>
               <Grid size={18} /> Manage
             </button>
@@ -190,15 +251,20 @@ const AdminDashboard: React.FC = () => {
               <Upload size={18} /> Upload
             </button>
             {isSuperAdmin && (
-              <button onClick={() => setActiveTab('activity')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'activity' ? 'bg-purple-600 text-white shadow' : 'text-textSecondary hover:text-purple-400'}`}>
-                <Activity size={18} /> Activity Log
-              </button>
+              <>
+                <button onClick={() => setActiveTab('activity')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'activity' ? 'bg-purple-600 text-white shadow' : 'text-textSecondary hover:text-purple-400'}`}>
+                    <Activity size={18} /> Log
+                </button>
+                <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'analytics' ? 'bg-orange-500 text-white shadow' : 'text-textSecondary hover:text-orange-400'}`}>
+                    <TrendingUp size={18} /> Analytics
+                </button>
+              </>
             )}
           </div>
         </div>
 
-        {/* --- PHASE 3: STATS CARDS (Super Admin Only) --- */}
-        {isSuperAdmin && (
+        {/* --- GLOBAL STATS (Visible on all tabs for Super Admin) --- */}
+        {isSuperAdmin && activeTab !== 'upload' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-surface border border-surfaceHighlight p-6 rounded-xl flex items-center gap-4 shadow-neumorphic">
               <div className="p-3 bg-blue-500/10 text-blue-500 rounded-full"><BarChart3 size={24} /></div>
@@ -239,12 +305,10 @@ const AdminDashboard: React.FC = () => {
                 {images.filter(img => img.prompt.toLowerCase().includes(searchTerm.toLowerCase()) || img.category.toLowerCase().includes(searchTerm.toLowerCase()))
                 .map((img) => (
                   <div key={img.id} className="bg-surface border border-surfaceHighlight rounded-xl overflow-hidden group relative hover:border-accent/50 transition-colors">
-                    
-                    {/* SUPER ADMIN: COLORED DOT */}
+                    {/* SUPER ADMIN DOT */}
                     {isSuperAdmin && (
                         <div className="absolute top-2 left-2 z-10 w-4 h-4 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: getAdminColor(img.created_by || 'unknown') }} title={`Uploaded by Admin ID: ${img.created_by || 'Unknown'}`} />
                     )}
-
                     <div className="relative h-48 bg-black">
                       <img src={img.thumbnail} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                       {img.is_featured && <div className="absolute top-2 right-2 bg-accent text-white text-[10px] font-bold px-2 py-1 rounded shadow uppercase">Featured</div>}
@@ -276,28 +340,18 @@ const AdminDashboard: React.FC = () => {
                              {file ? <div className="text-green-500 font-medium break-all bg-green-500/10 px-4 py-2 rounded-lg">{file.name}</div> : <><Upload size={32} className="text-textSecondary"/><p className="text-textPrimary">Drag or browse</p></>}
                         </label>
                     </div>
-                    <div>
-                        <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Prompt</label>
-                        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} required rows={4} className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm" placeholder="Enter prompt..." />
-                    </div>
+                    <div><label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Prompt</label><textarea value={prompt} onChange={e => setPrompt(e.target.value)} required rows={4} className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm" placeholder="Enter prompt..." /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Category</label>
-                            <input list="cat-list" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-11" placeholder="Select..." />
-                            <datalist id="cat-list">{CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c} />)}</datalist>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Tags</label>
-                            <input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-11" placeholder="dark, 4k..." />
-                        </div>
+                        <div><label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Category</label><input list="cat-list" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-11" placeholder="Select..." /><datalist id="cat-list">{CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c} />)}</datalist></div>
+                        <div><label className="block text-xs font-medium text-textSecondary uppercase tracking-wider mb-2">Tags</label><input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-11" placeholder="dark, 4k..." /></div>
                     </div>
-                    <button type="submit" disabled={uploading || !file} className={`w-full py-3 rounded-lg font-bold text-white transition-all ${uploading || !file ? 'bg-gray-400' : 'bg-accent hover:bg-accent/90'}`}>{uploading ? 'Uploading...' : 'Upload Image'}</button>
+                    <button type="submit" disabled={uploading || !file} className={`w-full py-3 rounded-lg font-bold text-white transition-all ${uploading || !file ? 'bg-gray-400' : 'bg-accent hover:bg-accent/90'}`}>{uploading ? 'Compressing & Uploading...' : 'Upload Image'}</button>
                 </form>
             </div>
           </div>
         )}
 
-        {/* --- TAB: ACTIVITY LOG (PHASE 3 FILTER UPGRADE) --- */}
+        {/* --- TAB: ACTIVITY LOG (List View) --- */}
         {activeTab === 'activity' && isSuperAdmin && (
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -362,8 +416,125 @@ const AdminDashboard: React.FC = () => {
                                 )}
                             </tbody>
                         </table>
-                      </div>
+                    </div>
                 )}
+            </div>
+        )}
+
+        {/* --- TAB: ANALYTICS (PHASE 5 NEW!) --- */}
+        {activeTab === 'analytics' && isSuperAdmin && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                
+                {/* 1. Time Filters */}
+                <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-textPrimary flex items-center gap-2">
+                        <TrendingUp className="text-orange-500"/> Performance Analytics
+                    </h2>
+                    <div className="flex bg-surfaceHighlight p-1 rounded-lg">
+                        {(['today', 'week', 'month', 'all'] as TimeRange[]).map(r => (
+                            <button 
+                                key={r} 
+                                onClick={() => setTimeRange(r)} 
+                                className={`px-3 py-1 text-xs font-bold uppercase rounded transition-all
+                                    ${timeRange === r ? 'bg-surface text-textPrimary shadow' : 'text-textSecondary hover:text-textPrimary'}`
+                                }
+                            >
+                                {r}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 2. Visual Chart (Activity Volume) */}
+                <div className="bg-surface border border-surfaceHighlight p-6 rounded-2xl shadow-neumorphic">
+                    <div className="flex items-center gap-2 mb-6">
+                        <Calendar size={16} className="text-textSecondary" />
+                        <h3 className="text-sm font-bold text-textSecondary uppercase">Activity Volume</h3>
+                    </div>
+                    
+                    {analyticsData.chartData.length > 0 ? (
+                        <div className="flex items-end justify-between h-40 gap-2">
+                            {analyticsData.chartData.map((item, idx) => {
+                                // Calculate height relative to max value
+                                const max = Math.max(...analyticsData.chartData.map(d => d.count));
+                                const height = (item.count / max) * 100;
+                                
+                                return (
+                                    <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
+                                        <div 
+                                            className="w-full bg-accent/20 rounded-t-sm relative hover:bg-accent/40 transition-colors"
+                                            style={{ height: `${height}%`, minHeight: '4px' }}
+                                        >
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                                {item.count} Actions
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-textSecondary truncate w-full text-center">{item.date}</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 text-textSecondary flex flex-col items-center">
+                            <Activity size={40} className="mb-2 opacity-20"/>
+                            <p>No activity recorded in this time range.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. Admin Leaderboard */}
+                <div className="bg-surface border border-surfaceHighlight rounded-2xl shadow-neumorphic overflow-hidden">
+                    <div className="p-6 border-b border-surfaceHighlight flex items-center gap-2">
+                        <Award className="text-yellow-500" />
+                        <h3 className="text-lg font-bold text-textPrimary">Top Contributors</h3>
+                    </div>
+                    
+                    {/* FIX: Added this wrapper div for scrolling */}
+                    <div className="overflow-x-auto">
+                        {/* FIX: Added min-w-[600px] to force horizontal scroll on mobile */}
+                        <table className="w-full text-left min-w-[600px]">
+                            <thead className="bg-surfaceHighlight/30 text-xs uppercase text-textSecondary">
+                                <tr>
+                                    <th className="p-4">Rank</th>
+                                    <th className="p-4">Admin</th>
+                                    <th className="p-4 text-center">Uploads</th>
+                                    <th className="p-4 text-center">Edits</th>
+                                    <th className="p-4 text-right">Last Active</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-surfaceHighlight">
+                                {analyticsData.leaderboard.length > 0 ? analyticsData.leaderboard.map((admin, idx) => (
+                                    <tr key={admin.email} className="hover:bg-surfaceHighlight/20 transition-colors">
+                                        <td className="p-4 font-bold text-textSecondary">
+                                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm" style={{ backgroundColor: getAdminColor(admin.email) }}>
+                                                    {admin.email[0].toUpperCase()}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-textPrimary">{admin.email.split('@')[0]}</span>
+                                                    <span className="text-[10px] text-textSecondary">{admin.email}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="bg-green-500/10 text-green-500 px-2 py-1 rounded-md text-sm font-bold">{admin.uploads}</span>
+                                        </td>
+                                        <td className="p-4 text-center text-sm text-textSecondary">{admin.edits}</td>
+                                        <td className="p-4 text-right text-xs text-textSecondary">
+                                            {new Date(admin.lastActive).toLocaleDateString()}
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan={5} className="p-8 text-center text-textSecondary">No data available.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         )}
 
