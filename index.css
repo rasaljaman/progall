@@ -2,55 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+    font-family: "ChristmasCalling";
+    src: url("./assets/fonts/Christmas Calling-Personal Use.otf")
+        format("opentype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+.font-christmas {
+  font-family: 'ChristmasCalling', cursive;
+}
+
 :root {
-  color-scheme: dark light;
+    color-scheme: dark light;
 }
 
 body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* --- Global Smooth Scroll --- */
 html {
-  scroll-behavior: smooth;
+    scroll-behavior: smooth;
 }
 
 /* --- Custom Scrollbar --- */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+    width: 8px;
+    height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 4px;
+    background: #333;
+    border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+    background: #555;
 }
 
 /* --- Tactile Buttons (Bounce Effect) --- */
 button:active {
-  transform: scale(0.96);
+    transform: scale(0.96);
 }
 
 /* --- Page Transitions --- */
 .page-enter {
-  animation: fadeUp 0.5s ease-out forwards;
+    animation: fadeUp 0.5s ease-out forwards;
 }
 
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

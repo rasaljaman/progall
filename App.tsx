@@ -14,12 +14,32 @@ import Privacy from './pages/Privacy';
 import Contact from './pages/Contact';
 import About from './pages/About';
 
+// --- NEW: CHRISTMAS EVENT COMPONENTS ---
+import Snowfall from './components/Christmas/Snowfall';
+import HolidayGift from './components/Christmas/HolidayGift';
+import ChristmasPage from './pages/ChristmasPage';
+
 import { supabase, supabaseService } from './services/supabaseService';
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // --- CHRISTMAS EVENT LOGIC (Option B: Manual Control) ---
+  // 1. To Turn OFF manually: Change this to 'false'
+  // 2. To Turn ON manually: Change this to 'true'
+  const ENABLE_EVENT = true; 
+  
+  const isChristmasSeason = () => {
+    // If manual switch is off, kill the event immediately
+    if (!ENABLE_EVENT) return false;
+
+    // Otherwise, check the date (Auto-hide after Dec 26)
+    const today = new Date();
+    return today.getMonth() === 11 && today.getDate() <= 26;
+  };
+  // -------------------------------------------------------
 
   useEffect(() => {
     // Check active session
@@ -59,7 +79,16 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <div className="flex flex-col min-h-screen bg-background text-textPrimary font-sans selection:bg-accent selection:text-black">
+      <div className="flex flex-col min-h-screen bg-background text-textPrimary font-sans selection:bg-accent selection:text-black relative overflow-x-hidden">
+        
+        {/* --- RENDER EVENT LAYERS --- */}
+        {isChristmasSeason() && (
+          <>
+            <Snowfall />
+            <HolidayGift />
+          </>
+        )}
+
         <Navbar onToggleSidebar={toggleSidebar} />
         <Sidebar 
             isOpen={isSidebarOpen} 
@@ -73,7 +102,7 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/image/:id" element={<ImageDetail />} />
             
-            {/* New Public Routes for Phase 1 */}
+            {/* Public Routes */}
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/contact" element={<Contact />} />
@@ -93,6 +122,8 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                 } 
             />
+            
+            <Route path="/christmas" element={<ChristmasPage />} /> 
           </Routes>
         </main>
         <Footer />
