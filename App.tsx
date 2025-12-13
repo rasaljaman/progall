@@ -124,6 +124,11 @@ const App: React.FC = () => {
                 } 
             />
             
+            <Route 
+                path="/admin/analytics" 
+                element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} 
+            />
+            
             <Route path="/christmas" element={<ChristmasPage />} /> 
           </Routes>
         </main>
