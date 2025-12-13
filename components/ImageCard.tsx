@@ -3,6 +3,8 @@ import { ImageItem } from '../types';
 import { Link } from 'react-router-dom';
 import { MoreVertical, Copy, Sparkles, Download, Share2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+// 1. Added missing import
+import { supabaseService } from '../services/supabaseService';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -28,19 +30,30 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
     e.preventDefault(); 
     setShowMenu(false);
 
+    // --- COPY ACTION ---
     if (action === 'copy') {
       navigator.clipboard.writeText(image.prompt);
-      showToast('Prompt copied to clipboard! ✨');
+      showToast('Prompt copied to clipboard! ✨'); 
+      supabaseService.trackEvent('COPY', { image_id: image.id, prompt_snip: image.prompt.slice(0, 20) });
     }
+
+    // --- REMIX ACTION (Fixed Syntax) ---
     if (action === 'remix') {
+       // Track first
+       supabaseService.trackEvent('REMIX', { image_id: image.id });
+       
        const newTab = window.open('https://gemini.google.com/app', '_blank');
        navigator.clipboard.writeText(image.prompt);
+       
+       // Logic must be inside this block to access 'newTab'
        if(!newTab) {
          showToast('Popup blocked. Prompt copied anyway!', 'error');
        } else {
          showToast('Opening Gemini... Prompt copied!');
        }
     }
+
+    // --- SHARE ACTION ---
     if (action === 'share') {
       if (navigator.share) {
         navigator.share({ title: 'ProGall Art', text: image.prompt, url: window.location.href + 'image/' + image.id });
@@ -49,13 +62,15 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         showToast('Link copied to clipboard!');
       }
     }
+
+    // --- DOWNLOAD ACTION ---
     if (action === 'download') {
       window.open(image.url, '_blank');
+      supabaseService.trackEvent('DOWNLOAD', { image_id: image.id });
     }
   };
 
   return (
-    // REMOVED 'mb-4 break-inside-avoid' from here
     <div className="relative group h-full">
       <Link 
         to={`/image/${image.id}`} 

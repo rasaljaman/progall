@@ -60,6 +60,39 @@ export class SupabaseService {
     const { data: { user } } = await supabase.auth.getUser();
     return user;
   }
+  
+    // --- ANALYTICS: TRACK USER EVENTS ---
+  async trackEvent(eventType: string, details: object = {}) {
+    try {
+      // Get basic device info
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const deviceType = isMobile ? 'Mobile' : 'Desktop';
+      
+      await supabase.from('user_events').insert([
+        { 
+          event_type: eventType, 
+          details: { ...details, device: deviceType, page: window.location.pathname } 
+        }
+      ]);
+    } catch (err) {
+      // Silently fail so we don't annoy the user if tracking breaks
+      console.error("Tracking error:", err);
+    }
+  }
+
+  // --- ANALYTICS: FETCH DATA FOR DASHBOARD ---
+  async getAnalyticsData(days: number = 30) {
+    const { data, error } = await supabase
+      .from('user_events')
+      .select('*')
+      .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(2000); // Fetch last 2000 events for analysis
+
+    if (error) throw error;
+    return data || [];
+  }
+
 
   // --- Data & Storage ---
   async getImages(): Promise<ImageItem[]> {

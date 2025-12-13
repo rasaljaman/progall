@@ -13,6 +13,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Contact from './pages/Contact';
 import About from './pages/About';
+import AnalyticsPage from './pages/AnalyticsPage'; 
 
 // --- NEW: CHRISTMAS EVENT COMPONENTS ---
 import Snowfall from './components/Christmas/Snowfall';

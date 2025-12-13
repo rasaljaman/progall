@@ -42,6 +42,14 @@ const Home: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [inputValue, debouncedQuery]);
+  
+    // Add this useEffect to track searches
+  useEffect(() => {
+    if (debouncedQuery && debouncedQuery.length > 2) {
+      supabaseService.trackEvent('SEARCH', { term: debouncedQuery });
+    }
+  }, [debouncedQuery]);
+
 
   // --- 3. History Helper ---
   const addToHistory = (query: string) => {

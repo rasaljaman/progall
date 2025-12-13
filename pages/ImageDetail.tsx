@@ -42,6 +42,8 @@ const ImageDetail: React.FC = () => {
       }
 
       setImage(currentImg);
+      supabaseService.trackEvent('VIEW', { image_id: currentImg.id, category:
+      currentImg.category });
 
       const { data: allImages } = await supabase
         .from('images')
@@ -87,6 +89,8 @@ const ImageDetail: React.FC = () => {
   
   const handleGeminiRemix = () => {
     if (image) {
+      supabaseService.trackEvent('REMIX', { image_id: image.id, category:
+      image.category });
       const newTab = window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
         .then(() => {
