@@ -30,7 +30,7 @@ const ChristmasPage: React.FC = () => {
       setLoading(true);
       const allImages = await supabaseService.getImages();
       
-      const holidayKeywords = ['christmas', 'santa', 'snow', 'winter', 'holiday', 'reindeer', 'elf', 'gift', 'xmas', 'festive'];
+      const holidayKeywords = ['christmas', 'santa', 'snow', 'winter', 'gift', 'xmas', 'festive'];
       
       const filtered = allImages.filter(img => {
         const text = (img.prompt + img.tags.join(' ')).toLowerCase();
