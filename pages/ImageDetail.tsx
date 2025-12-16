@@ -1,10 +1,9 @@
-// ... imports (Keep existing imports)
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem } from '../types';
-import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react'; // Removed 'Pin'
 import { getAdminColor } from '../constants'; 
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
@@ -42,8 +41,7 @@ const ImageDetail: React.FC = () => {
       }
 
       setImage(currentImg);
-      supabaseService.trackEvent('VIEW', { image_id: currentImg.id, category:
-      currentImg.category });
+      supabaseService.trackEvent('VIEW', { image_id: currentImg.id, category: currentImg.category });
 
       const { data: allImages } = await supabase
         .from('images')
@@ -84,13 +82,13 @@ const ImageDetail: React.FC = () => {
     if (image) {
       navigator.clipboard.writeText(image.prompt);
       showToast('Prompt copied successfully! 🎨');
+      supabaseService.trackEvent('COPY', { image_id: image.id });
     }
   };
   
   const handleGeminiRemix = () => {
     if (image) {
-      supabaseService.trackEvent('REMIX', { image_id: image.id, category:
-      image.category });
+      supabaseService.trackEvent('REMIX', { image_id: image.id, category: image.category });
       const newTab = window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
         .then(() => {
@@ -102,16 +100,37 @@ const ImageDetail: React.FC = () => {
     }
   };
 
+  // --- SMART SHARE FUNCTION ---
   const handleShare = async () => {
-    if (navigator.share && image) {
-      try {
-        await navigator.share({
-          title: 'ProGall Art',
-          text: image.prompt,
-          url: window.location.href,
-        });
-      } catch (err) { }
-    } else {
+    if (!image) return;
+
+    try {
+      if (navigator.share) {
+        // Fetch Image Blob
+        const response = await fetch(image.url);
+        const blob = await response.blob();
+        const file = new File([blob], 'art.webp', { type: blob.type });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: 'ProGall Art',
+                text: `${image.prompt.slice(0, 100)}...`,
+                url: window.location.href,
+                files: [file]
+            });
+        } else {
+            // Fallback (Desktop/Unsupported File Share)
+            await navigator.share({
+                title: 'ProGall Art',
+                text: image.prompt,
+                url: window.location.href,
+            });
+        }
+      } else {
+        handleCopy();
+      }
+    } catch (err) {
+      // Fallback if user cancels or fetch fails
       handleCopy();
     }
   };
@@ -137,7 +156,6 @@ const ImageDetail: React.FC = () => {
   if (!image) return null;
 
   return (
-    // ADDED 'page-enter' CLASS HERE
     <div className="min-h-screen pb-20 pt-6 page-enter">
       
       <Helmet>

@@ -3,7 +3,6 @@ import { ImageItem } from '../types';
 import { Link } from 'react-router-dom';
 import { MoreVertical, Copy, Sparkles, Download, Share2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-// 1. Added missing import
 import { supabaseService } from '../services/supabaseService';
 
 interface ImageCardProps {
@@ -26,26 +25,23 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleAction = (action: string, e: React.MouseEvent) => {
+  const handleAction = async (action: string, e: React.MouseEvent) => {
     e.preventDefault(); 
     setShowMenu(false);
 
-    // --- COPY ACTION ---
+    // --- COPY ---
     if (action === 'copy') {
       navigator.clipboard.writeText(image.prompt);
       showToast('Prompt copied to clipboard! ✨'); 
       supabaseService.trackEvent('COPY', { image_id: image.id, prompt_snip: image.prompt.slice(0, 20) });
     }
 
-    // --- REMIX ACTION (Fixed Syntax) ---
+    // --- REMIX ---
     if (action === 'remix') {
-       // Track first
        supabaseService.trackEvent('REMIX', { image_id: image.id });
-       
        const newTab = window.open('https://gemini.google.com/app', '_blank');
        navigator.clipboard.writeText(image.prompt);
        
-       // Logic must be inside this block to access 'newTab'
        if(!newTab) {
          showToast('Popup blocked. Prompt copied anyway!', 'error');
        } else {
@@ -53,17 +49,47 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
        }
     }
 
-    // --- SHARE ACTION ---
+    // --- SHARE (SMART IMAGE SHARING) ---
     if (action === 'share') {
-      if (navigator.share) {
-        navigator.share({ title: 'ProGall Art', text: image.prompt, url: window.location.href + 'image/' + image.id });
-      } else {
-        navigator.clipboard.writeText(window.location.href + 'image/' + image.id);
+      const shareUrl = window.location.origin + '/#/image/' + image.id;
+      
+      try {
+        if (navigator.share) {
+          // 1. Fetch the image as a blob
+          const response = await fetch(image.url);
+          const blob = await response.blob();
+          const file = new File([blob], 'art.webp', { type: blob.type });
+
+          // 2. Check if device supports file sharing
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: 'ProGall Art',
+              text: `${image.prompt.slice(0, 100)}...`, // Some apps prefer short text
+              url: shareUrl,
+              files: [file]
+            });
+          } else {
+            // Fallback: Share Text + Link only
+            await navigator.share({
+              title: 'ProGall Art',
+              text: image.prompt,
+              url: shareUrl,
+            });
+          }
+        } else {
+          // Fallback: Copy Link
+          navigator.clipboard.writeText(shareUrl);
+          showToast('Link copied to clipboard!');
+        }
+      } catch (error) {
+        console.error("Share failed:", error);
+        // Fallback if sharing was cancelled or failed
+        navigator.clipboard.writeText(shareUrl);
         showToast('Link copied to clipboard!');
       }
     }
 
-    // --- DOWNLOAD ACTION ---
+    // --- DOWNLOAD ---
     if (action === 'download') {
       window.open(image.url, '_blank');
       supabaseService.trackEvent('DOWNLOAD', { image_id: image.id });
