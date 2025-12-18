@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Masonry from 'react-masonry-css';
 import { ImageItem } from '../types';
 import ImageCard from './ImageCard';
+import AdCard from './AdCard'; // Import the AdCard
 import './masonry.css'; 
 import ImageCardSkeleton from './ImageCardSkeleton';
 import { ChevronDown } from 'lucide-react';
-import ScrollReveal from './ScrollReveal'; // Import the new component
+import ScrollReveal from './ScrollReveal';
+import { supabase } from '../services/supabaseService'; // Import Supabase for auth check
 
 interface GalleryGridProps {
   images: ImageItem[];
@@ -14,6 +16,16 @@ interface GalleryGridProps {
 
 const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
   const [visibleCount, setVisibleCount] = useState(20);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // 1. Check if user is Admin (Logged in)
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAdmin(!!session); // true if logged in, false if visitor
+    };
+    checkUser();
+  }, []);
 
   const showMore = () => {
     setVisibleCount(prev => prev + 20);
@@ -26,6 +38,7 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
     500: 1
   };
   
+  // Loading State
   if (loading) {
     return (
       <div className="px-4 pb-10">
@@ -42,6 +55,7 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
     );
   }
 
+  // Empty State
   if (images.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -52,6 +66,35 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
 
   const visibleImages = images.slice(0, visibleCount);
 
+  // 2. Logic to interleave Ads with Images
+  const renderItems = () => {
+    const items: React.ReactNode[] = [];
+
+    visibleImages.forEach((image, index) => {
+      // Push the Image
+      items.push(
+        <ScrollReveal key={image.id} className="mb-4 break-inside-avoid" delay={(index % 4) * 50}> 
+          <ImageCard image={image} />
+        </ScrollReveal>
+      );
+
+      // Insert Ad after every 5th image (5, 10, 15...)
+      // CONDITION: Only if NOT Admin and not the very last item
+      if (!isAdmin && (index + 1) % 5 === 0 && index !== visibleImages.length - 1) {
+        items.push(
+          <ScrollReveal key={`ad-${index}`} className="mb-4 break-inside-avoid" delay={100}>
+             {/* AdCard container with fixed height matching your specific ad unit if needed */}
+             <div className="w-full">
+               <AdCard />
+             </div>
+          </ScrollReveal>
+        );
+      }
+    });
+
+    return items;
+  };
+
   return (
     <div className="px-4 pb-20">
       <Masonry
@@ -59,13 +102,7 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
         className="my-masonry-grid"
         columnClassName="my-masonry-grid_column"
       >
-        {visibleImages.map((image, index) => (
-          // WRAP IMAGE CARD IN SCROLL REVEAL
-          // We apply the layout classes (mb-4, break-inside-avoid) here instead of inside ImageCard
-          <ScrollReveal key={image.id} className="mb-4 break-inside-avoid" delay={index % 4 * 50}> 
-            <ImageCard image={image} />
-          </ScrollReveal>
-        ))}
+        {renderItems()}
       </Masonry>
 
       {visibleCount < images.length && (
