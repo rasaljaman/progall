@@ -6,6 +6,8 @@ import Home from './pages/Home';
 import ImageDetail from './pages/ImageDetail';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminGenerator from './pages/AdminGenerator';
+
 import Footer from './components/Footer';
 
 // Import the new Legal/Support pages
@@ -128,6 +130,12 @@ const App: React.FC = () => {
                 path="/admin/analytics" 
                 element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} 
             />
+            
+            <Route 
+    path="/admin/generator" 
+    element={<ProtectedRoute><AdminGenerator /></ProtectedRoute>} 
+/>
+
             
             <Route path="/christmas" element={<ChristmasPage />} /> 
           </Routes>

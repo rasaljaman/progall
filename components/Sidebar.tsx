@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Home, Upload, LogOut, Grid, FileText, Shield, Mail, Sun, Moon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -123,6 +124,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
                 <Link to="/admin/analytics" onClick={onClose} className="flex items-center gap-3 px-4 py-3 text-[#f2e8cf] hover:bg-[#a7c957]/20 rounded-lg transition-colors">
                   <BarChart3 size={20} className="text-[#b88b2e]" />
                   <span className="font-bold">Analytics</span>
+                </Link>
+                
+                <Link  to="/admin/generator"  onClick={onClose} className="flex items-center gap-3 px-4 py-3 text-[#f2e8cf] hover:bg-[#a7c957]/20 rounded-lg transition-colors">
+                  <Sparkles size={20} className="text-[#b88b2e]" />
+                  <span className="font-bold">AI Auto-Creator</span>
                 </Link>
                 
               </>
