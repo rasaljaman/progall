@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseService';
-import { Sparkles, RefreshCw, Palette, Image as ImageIcon, Zap, Wand2, Camera } from 'lucide-react';
+import { Sparkles, RefreshCw, Palette, Camera, Zap, AlertTriangle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const AdminGenerator: React.FC = () => {
@@ -8,70 +8,75 @@ const AdminGenerator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(''); 
   const [generatedData, setGeneratedData] = useState<any>(null);
-  const [selectedStyle, setSelectedStyle] = useState('No Style');
+  const [selectedStyle, setSelectedStyle] = useState('Realistic'); // Default to Realistic
   
   const { showToast } = useToast();
 
-  const styles = [
-    { name: 'No Style', prompt: '' },
-    { name: 'Anime', prompt: 'anime style, studio ghibli, makoto shinkai, highly detailed, 8k, vibrant' },
-    { name: 'Cyberpunk', prompt: 'cyberpunk, neon noir, blade runner aesthetic, futuristic city, chromatic aberration' },
-    { name: 'Realistic', prompt: 'award winning photography, shot on Sony A7R IV, 85mm lens, f/1.8, bokeh, natural lighting' },
-    { name: 'Oil Painting', prompt: 'oil painting, thick impasto, textured brushstrokes, classical composition' },
-    { name: '3D Render', prompt: '3D render, unreal engine 5, octane render, ray tracing, subsurface scattering' }
-  ];
+  // --- PROMPTING ENGINE ---
+  // These "Secret Ingredients" force the AI to look professional
+  const styles: Record<string, string> = {
+    'No Style': 'highly detailed, sharp focus, 8k',
+    'Anime': 'anime style, studio ghibli, makoto shinkai, vibrant colors, highly detailed, 8k resolution, cinematic lighting',
+    'Cyberpunk': 'cyberpunk style, neon noir, blade runner aesthetic, futuristic city, chromatic aberration, wet streets, realistic texture',
+    'Realistic': 'award winning photography, shot on Sony A7R IV, 85mm lens, f/1.8, depth of field, natural lighting, skin pores, hyper-realistic, 8k uhd',
+    'Oil Painting': 'oil painting style, thick impasto, textured brushstrokes, classical composition, dramatic lighting',
+    '3D Render': '3D render, unreal engine 5, octane render, ray tracing, volumetric lighting, subsurface scattering, 8k'
+  };
 
   const handleGenerate = async () => {
     if (!topic) return showToast('Please enter a topic!', 'error');
 
     setLoading(true);
     setGeneratedData(null);
-    setStatus('Consulting the Unlimited AI Brain... 🧠');
+    setStatus('Enhancing your idea... 🧠');
 
     try {
-      const styleInstruction = styles.find(s => s.name === selectedStyle)?.prompt || '';
+      const stylePrompt = styles[selectedStyle] || styles['No Style'];
       
-      // --- PHASE 1: GENERATE PROMPT (UNLIMITED TEXT API) ---
-      // We force the AI to write a "Midjourney v6" style prompt
+      // --- PHASE 1: GENERATE METADATA (Pollinations Text - Unlimited) ---
+      // We ask the AI to expand your simple idea into a full scene description
       const systemPrompt = `
-        You are an expert AI Prompt Engineer. 
-        Topic: "${topic}". Style: "${styleInstruction}".
-        
-        Task: Write a JSON object with:
-        1. "prompt": A highly descriptive prompt. INCLUDE camera settings (ISO, Aperture), lighting (volumetric, cinematic), and texture keywords (skin pores, fabric detail).
-        2. "category": Category name.
-        3. "tags": 5 hashtags.
-        
-        Output ONLY valid JSON.
+        Act as a Pro Photographer. 
+        Input: "${topic}". 
+        Style: "${selectedStyle}".
+        Task: Return valid JSON with:
+        1. "prompt": A vivid, descriptive paragraph expanding on the input. Describe lighting, camera angle, and textures.
+        2. "category": A single category name.
+        3. "tags": 5 relevant hashtags.
+        Output ONLY JSON.
       `;
 
-      const textResponse = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
-      if (!textResponse.ok) throw new Error("AI Brain is offline.");
-      
-      let rawText = await textResponse.text();
-      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-      
-      let aiData;
-      try {
-        aiData = JSON.parse(rawText);
-      } catch (e) {
-        aiData = {
-          prompt: `${topic}, ${styleInstruction}, hyper-detailed, 8k, masterpiece, sharp focus`,
+      let aiData = {
+          prompt: `${topic}, ${stylePrompt}`,
           category: 'AI Art',
           tags: ['ai', 'generated']
-        };
+      };
+
+      try {
+        const textResponse = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
+        if (textResponse.ok) {
+           let rawText = await textResponse.text();
+           // Clean cleanup to ensure valid JSON
+           rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+           const parsed = JSON.parse(rawText);
+           aiData = { ...parsed };
+        }
+      } catch (e) {
+         console.warn("Text brain failed, using manual fallback.");
       }
 
-      // --- PHASE 2: GENERATE IMAGE (TUNED FOR QUALITY) ---
-      setStatus('Rendering high-texture image... 📸');
+      // --- PHASE 2: GENERATE IMAGE (Pollinations Flux) ---
+      // This is the "Magic Sauce" that fixes quality
+      setStatus('Rendering high-fidelity image... 📸');
       
-      // MAGIC TRICK: We append "Quality Boosters" to the end of the prompt manually
-      const qualityBoosters = "highly detailed, sharp focus, 8k, uhd, professional photography, masterpiece";
-      const finalPrompt = `${aiData.prompt}, ${styleInstruction}, ${qualityBoosters}`;
+      // We combine the AI's description + our "Pro Style" keywords
+      const finalPrompt = `${aiData.prompt}, ${stylePrompt}`;
       
-      // FIX: Removed 'enhance=true' (it causes blurring). 
-      // Kept 'model=flux' (best base model). 
-      // Added 'seed' randomization.
+      // KEY SETTINGS:
+      // model=flux (Best quality)
+      // seed=random (Ensures a new image every time)
+      // width/height=HD (Cinematic look)
+      // nologo=true (Removes watermark)
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&model=flux&width=1280&height=720&seed=${Math.floor(Math.random() * 99999)}`;
       
       setGeneratedData({
@@ -102,7 +107,6 @@ const AdminGenerator: React.FC = () => {
       if (!user) throw new Error("You are not logged in.");
 
       const res = await fetch(generatedData.tempImageUrl);
-      if (!res.ok) throw new Error("Download failed.");
       const blob = await res.blob();
       const file = new File([blob], `ai-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const fileName = `${Date.now()}.jpg`;
@@ -139,23 +143,26 @@ const AdminGenerator: React.FC = () => {
     <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-screen text-textPrimary">
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Camera className="text-accent" /> Pro AI Studio
+          <Zap className="text-yellow-400 fill-yellow-400" /> Unlimited AI Studio
         </h1>
         <p className="text-textSecondary mt-2">
-          Unlimited generation. Professional photography tuning enabled.
+          Stable, Unlimited, and Tuned for Quality.
         </p>
       </div>
 
       <div className="bg-surface border border-surfaceHighlight p-6 rounded-2xl shadow-lg mb-8">
         <div className="mb-4">
+           <label className="text-xs font-bold text-textSecondary uppercase tracking-widest mb-2 block">
+             Choose Style (Tuned for Realism)
+           </label>
            <div className="flex flex-wrap gap-2">
-             {styles.map(style => (
+             {Object.keys(styles).map(styleName => (
                <button
-                 key={style.name}
-                 onClick={() => setSelectedStyle(style.name)}
-                 className={`px-4 py-2 rounded-full text-sm font-bold border transition-all ${selectedStyle === style.name ? 'bg-accent text-white border-accent' : 'bg-black/20 border-surfaceHighlight text-gray-400'}`}
+                 key={styleName}
+                 onClick={() => setSelectedStyle(styleName)}
+                 className={`px-4 py-2 rounded-full text-sm font-bold border transition-all ${selectedStyle === styleName ? 'bg-accent text-white border-accent' : 'bg-black/20 border-surfaceHighlight text-gray-400'}`}
                >
-                 {style.name}
+                 {styleName}
                </button>
              ))}
            </div>
@@ -164,7 +171,7 @@ const AdminGenerator: React.FC = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <input 
             type="text" 
-            placeholder="e.g. A futuristic city in the clouds..." 
+            placeholder="e.g. A futuristic city..." 
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             className="flex-1 bg-black/20 border border-surfaceHighlight rounded-xl px-4 py-3 text-white outline-none focus:border-accent"
@@ -175,8 +182,8 @@ const AdminGenerator: React.FC = () => {
             disabled={loading}
             className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 ${loading ? 'bg-gray-700 text-gray-400' : 'bg-accent text-white shadow-lg hover:scale-105 transition-transform'}`}
           >
-            {loading ? <RefreshCw className="animate-spin"/> : <Wand2/>}
-            {loading ? 'Developing...' : 'Generate Pro'}
+            {loading ? <RefreshCw className="animate-spin"/> : <Sparkles/>}
+            {loading ? 'Creating...' : 'Generate'}
           </button>
         </div>
         
