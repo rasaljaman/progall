@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseService';
-import { Sparkles, Save, RefreshCw, Image as ImageIcon, Palette } from 'lucide-react';
+import { Sparkles, RefreshCw, Palette, Image as ImageIcon, Zap } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const AdminGenerator: React.FC = () => {
@@ -9,6 +9,7 @@ const AdminGenerator: React.FC = () => {
   const [status, setStatus] = useState(''); 
   const [generatedData, setGeneratedData] = useState<any>(null);
   const [selectedStyle, setSelectedStyle] = useState('No Style');
+  
   const { showToast } = useToast();
 
   const styles = [
@@ -20,92 +21,57 @@ const AdminGenerator: React.FC = () => {
     { name: '3D Render', prompt: '3D render, unreal engine 5, octane render, volumetric lighting, ray tracing' }
   ];
 
-  // --- DYNAMIC MODEL FINDER ---
-  const findWorkingModel = async (apiKey: string) => {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-      );
-      if (!response.ok) return null;
-      const data = await response.json();
-      if (!data.models) return null;
-
-      const preferred = data.models.find((m: any) => 
-        m.name.includes('gemini') && 
-        m.supportedGenerationMethods?.includes('generateContent') &&
-        (m.name.includes('flash') || m.name.includes('pro'))
-      );
-      return preferred ? preferred.name : 'models/gemini-pro';
-    } catch (e) {
-      return 'models/gemini-pro'; 
-    }
-  };
-
   const handleGenerate = async () => {
     if (!topic) return showToast('Please enter a topic!', 'error');
-    
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-        showToast('API Key missing in .env file', 'error');
-        return;
-    }
-    
+
     setLoading(true);
     setGeneratedData(null);
+    setStatus('Consulting the Unlimited AI Brain... 🧠');
 
     try {
-      // --- PHASE 1: GENERATE ---
-      setStatus('Connecting to AI Brain... 🧠');
-      const modelName = await findWorkingModel(apiKey);
       const styleInstruction = styles.find(s => s.name === selectedStyle)?.prompt || '';
       
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `
-                  Act as a professional AI Art Curator. I will give you a simple topic: "${topic}".
-                  1. Write a highly detailed, creative text-to-image prompt (Midjourney style). Style: ${styleInstruction}.
-                  2. Select the single best category: [Abstract, Anime, Cyberpunk, Fantasy, Landscapes, Minimalist, Nature, Portraits, Sci-Fi, Surrealism, 3D Render].
-                  3. Generate 5-8 relevant, searchable tags (comma separated).
-                  Return ONLY JSON with keys: "prompt", "category", "tags".
-                `
-              }]
-            }]
-          })
-        }
-      );
+      // --- PHASE 1: GENERATE PROMPT (UNLIMITED POLLINATIONS TEXT API) ---
+      // We ask for a JSON string directly in the URL
+      const systemPrompt = `
+        You are an AI Art Curator. 
+        Topic: "${topic}". Style: "${styleInstruction}".
+        Task: Return a JSON object with 3 keys:
+        1. "prompt": A detailed visual description for image generation.
+        2. "category": One word category (e.g. Anime, Nature).
+        3. "tags": A list of 5 relevant hashtags.
+        Output ONLY valid JSON. No markdown.
+      `;
 
-      if (!response.ok) throw new Error(`Gemini API Error: ${response.status}`);
-
-      const data = await response.json();
-      if (!data.candidates || data.candidates.length === 0) throw new Error("No results from AI.");
-
-      let text = data.candidates[0].content.parts[0].text;
-      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      // Use Pollinations Text API (No Key, Unlimited)
+      const textResponse = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
+      
+      if (!textResponse.ok) throw new Error("AI Brain is offline.");
+      
+      let rawText = await textResponse.text();
+      
+      // Clean up the text to ensure it is valid JSON
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
       
       let aiData;
       try {
-        aiData = JSON.parse(text);
+        aiData = JSON.parse(rawText);
       } catch (e) {
+        console.warn("JSON Parse failed, falling back to manual");
+        // Fallback if AI replies with plain text
         aiData = {
-          prompt: `${topic} ${styleInstruction}, highly detailed, 8k`,
+          prompt: `${topic}, ${styleInstruction}, highly detailed, 8k resolution, cinematic lighting`,
           category: 'AI Art',
-          tags: ['ai', 'art', 'generated']
+          tags: ['ai', 'generated', 'unlimited']
         };
       }
 
-      // --- PHASE 2: IMAGE ---
-      setStatus('Artist is painting... (This takes ~10s) 🎨');
-      const finalPrompt = `${aiData.prompt} ${styleInstruction}`;
+      // --- PHASE 2: GENERATE IMAGE (UNLIMITED POLLINATIONS IMAGE API) ---
+      setStatus('Artist is painting... 🎨');
       
-      // FIX: Changed 'nolog' to 'nologo' to remove watermark
-      // Added 'private=true' for extra measure
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&width=1024&height=1024&seed=${Math.floor(Math.random() * 1000)}`;
+      const finalPrompt = aiData.prompt;
+      // Using Flux model (best quality) + Nologo + Private
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&model=flux&width=1280&height=720&seed=${Math.floor(Math.random() * 1000)}`;
       
       setGeneratedData({
         ...aiData,
@@ -113,11 +79,11 @@ const AdminGenerator: React.FC = () => {
         tags: Array.isArray(aiData.tags) ? aiData.tags : aiData.tags.split(',').map((t: string) => t.trim())
       });
       
-      setStatus('Ready to review! ✨');
+      setStatus('Ready! ✨');
 
     } catch (error: any) {
       console.error(error);
-      showToast(`${error.message || 'Error occurred'}`, 'error');
+      showToast('Something went wrong. Try again.', 'error');
       setStatus('Error occurred.');
     } finally {
       setLoading(false);
@@ -128,82 +94,65 @@ const AdminGenerator: React.FC = () => {
   const handleSaveToGallery = async () => {
     if (!generatedData) return;
     setLoading(true);
-    setStatus('Uploading to database... ☁️');
+    setStatus('Uploading... ☁️');
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("You are not logged in.");
 
       const res = await fetch(generatedData.tempImageUrl);
-      if (!res.ok) throw new Error("Failed to download image from AI provider.");
+      if (!res.ok) throw new Error("Download failed.");
       const blob = await res.blob();
-      const file = new File([blob], `ai-gen-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const file = new File([blob], `ai-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const fileName = `${Date.now()}.jpg`;
 
-      const fileName = `${Date.now()}-ai-art.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(fileName, file);
+      const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
+      if (uploadError) throw uploadError;
 
-      if (uploadError) throw new Error(`Storage Upload Failed: ${uploadError.message}`);
+      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('images')
-        .getPublicUrl(fileName);
+      const { error: dbError } = await supabase.from('images').insert([{
+        url: publicUrl,
+        thumbnail: publicUrl,
+        prompt: generatedData.prompt,
+        category: generatedData.category,
+        tags: generatedData.tags,
+        created_at: new Date(),
+        created_by: user.id
+      }]);
 
-      const { error: dbError } = await supabase
-        .from('images')
-        .insert([{
-          url: publicUrl,
-          thumbnail: publicUrl,
-          prompt: generatedData.prompt,
-          category: generatedData.category,
-          tags: generatedData.tags,
-          created_at: new Date(),
-          created_by: user.id
-        }]);
-
-      if (dbError) throw new Error(`Database Save Failed: ${dbError.message}`);
-
-      showToast('Published to Gallery successfully! 🎉');
+      if (dbError) throw dbError;
+      showToast('Saved successfully! 🎉');
       setGeneratedData(null);
       setTopic('');
-      setStatus('');
 
     } catch (error: any) {
-      console.error(error);
-      showToast(error.message, 'error');
+      showToast(error.message || 'Save failed', 'error');
     } finally {
       setLoading(false);
+      setStatus('');
     }
   };
 
   return (
     <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-screen text-textPrimary">
-      
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Sparkles className="text-accent" /> AI Auto-Creator
+          <Zap className="text-yellow-400 fill-yellow-400" /> Unlimited AI Creator
         </h1>
         <p className="text-textSecondary mt-2">
-          Enter a simple idea. Select a style. The Agent does the rest.
+          Enter an idea. No limits. No API keys needed.
         </p>
       </div>
 
       <div className="bg-surface border border-surfaceHighlight p-6 rounded-2xl shadow-lg mb-8">
         <div className="mb-4">
-           <label className="text-xs font-bold text-textSecondary uppercase tracking-widest mb-2 block flex items-center gap-2">
-             <Palette size={14}/> Choose Art Style
-           </label>
            <div className="flex flex-wrap gap-2">
              {styles.map(style => (
                <button
                  key={style.name}
                  onClick={() => setSelectedStyle(style.name)}
-                 className={`px-4 py-2 rounded-full text-sm font-bold transition-all border ${
-                   selectedStyle === style.name 
-                   ? 'bg-accent border-accent text-white' 
-                   : 'bg-black/20 border-surfaceHighlight text-textSecondary hover:text-white'
-                 }`}
+                 className={`px-4 py-2 rounded-full text-sm font-bold border transition-all ${selectedStyle === style.name ? 'bg-accent text-white border-accent' : 'bg-black/20 border-surfaceHighlight text-gray-400'}`}
                >
                  {style.name}
                </button>
@@ -214,85 +163,56 @@ const AdminGenerator: React.FC = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <input 
             type="text" 
-            placeholder="e.g. A cat eating noodles..." 
+            placeholder="e.g. A futuristic city in the clouds..." 
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            className="flex-1 bg-black/20 border border-surfaceHighlight rounded-xl px-4 py-3 text-lg focus:border-accent outline-none text-white placeholder-gray-500"
+            className="flex-1 bg-black/20 border border-surfaceHighlight rounded-xl px-4 py-3 text-white outline-none focus:border-accent"
             disabled={loading}
           />
           <button 
             onClick={handleGenerate}
             disabled={loading}
-            className="bg-accent hover:bg-accent/80 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 ${loading ? 'bg-gray-700 text-gray-400' : 'bg-accent text-white shadow-lg hover:scale-105 transition-transform'}`}
           >
-            {loading ? <RefreshCw className="animate-spin" /> : <Sparkles />}
-            {loading ? 'Generate' : 'Generate'}
+            {loading ? <RefreshCw className="animate-spin"/> : <Sparkles/>}
+            {loading ? 'Creating...' : 'Generate'}
           </button>
         </div>
         
-        {status && (
-          <div className="mt-4 text-sm font-mono text-accent animate-pulse">
-            &gt; {status}
-          </div>
-        )}
+        {status && <div className="mt-4 text-sm font-mono text-accent animate-pulse">&gt; {status}</div>}
       </div>
 
       {generatedData && (
         <div className="bg-surface border border-surfaceHighlight rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-1 md:grid-cols-2">
-            
-            <div className="relative bg-black h-[400px] flex items-center justify-center group">
-               <img 
-                 src={generatedData.tempImageUrl} 
-                 alt="AI Preview" 
-                 className="w-full h-full object-cover"
-               />
+            <div className="relative bg-black h-[400px]">
+               <img src={generatedData.tempImageUrl} className="w-full h-full object-cover"/>
             </div>
-
             <div className="p-6 flex flex-col justify-between">
                <div className="space-y-4">
                   <div>
-                    <span className="text-xs font-bold text-textSecondary uppercase tracking-widest">Detected Category</span>
-                    <div className="text-accent font-bold text-xl">{generatedData.category}</div>
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-bold text-textSecondary uppercase tracking-widest">AI Written Prompt</span>
-                    <p className="text-sm text-textPrimary/80 leading-relaxed bg-black/20 p-3 rounded-lg border border-white/5 mt-1 max-h-40 overflow-y-auto">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Prompt</span>
+                    <p className="text-sm bg-black/20 p-3 rounded-lg border border-white/5 mt-1 max-h-40 overflow-y-auto">
                       {generatedData.prompt}
                     </p>
                   </div>
-
                   <div>
-                    <span className="text-xs font-bold text-textSecondary uppercase tracking-widest">Auto Tags</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {generatedData.tags.map((t: string, i: number) => (
-                        <span key={i} className="px-2 py-1 bg-surfaceHighlight rounded text-xs text-textSecondary">#{t}</span>
-                      ))}
-                    </div>
+                     <span className="text-xs font-bold text-gray-500 uppercase">Tags</span>
+                     <div className="flex flex-wrap gap-2 mt-2">
+                        {generatedData.tags.map((tag:string, i:number) => (
+                           <span key={i} className="text-xs bg-surfaceHighlight px-2 py-1 rounded text-textSecondary">#{tag}</span>
+                        ))}
+                     </div>
                   </div>
                </div>
-
                <div className="mt-8 flex gap-3">
-                 <button 
-                   onClick={() => setGeneratedData(null)} 
-                   className="flex-1 py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold transition-colors"
-                 >
-                   Discard
-                 </button>
-                 <button 
-                   onClick={handleSaveToGallery} 
-                   className="flex-[2] py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
-                 >
-                   <Save size={18} /> Approve & Upload
-                 </button>
+                 <button onClick={() => setGeneratedData(null)} className="flex-1 py-3 text-red-400 border border-red-500/30 rounded-xl hover:bg-red-500/10">Discard</button>
+                 <button onClick={handleSaveToGallery} className="flex-[2] py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg hover:bg-green-500">Approve & Upload</button>
                </div>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 };
