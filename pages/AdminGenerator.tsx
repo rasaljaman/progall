@@ -102,7 +102,10 @@ const AdminGenerator: React.FC = () => {
       // --- PHASE 2: IMAGE ---
       setStatus('Artist is painting... (This takes ~10s) 🎨');
       const finalPrompt = `${aiData.prompt} ${styleInstruction}`;
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nolog=true&width=1024&height=1024&seed=${Math.floor(Math.random() * 1000)}`;
+      
+      // FIX: Changed 'nolog' to 'nologo' to remove watermark
+      // Added 'private=true' for extra measure
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&width=1024&height=1024&seed=${Math.floor(Math.random() * 1000)}`;
       
       setGeneratedData({
         ...aiData,
@@ -121,40 +124,32 @@ const AdminGenerator: React.FC = () => {
     }
   };
 
-  // --- SAVE LOGIC (UPDATED WITH BETTER ERROR HANDLING & USER ID) ---
+  // --- SAVE LOGIC ---
   const handleSaveToGallery = async () => {
     if (!generatedData) return;
     setLoading(true);
     setStatus('Uploading to database... ☁️');
 
     try {
-      // 1. Get Current User (Required for 'created_by' if using UUIDs)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("You are not logged in.");
 
-      // 2. Fetch Image Blob
       const res = await fetch(generatedData.tempImageUrl);
       if (!res.ok) throw new Error("Failed to download image from AI provider.");
       const blob = await res.blob();
       const file = new File([blob], `ai-gen-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
-      // 3. Upload to Storage
       const fileName = `${Date.now()}-ai-art.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('images')
         .upload(fileName, file);
 
-      if (uploadError) {
-        console.error("Storage Error:", uploadError);
-        throw new Error(`Storage Upload Failed: ${uploadError.message}`);
-      }
+      if (uploadError) throw new Error(`Storage Upload Failed: ${uploadError.message}`);
 
-      // 4. Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('images')
         .getPublicUrl(fileName);
 
-      // 5. Insert into Database
       const { error: dbError } = await supabase
         .from('images')
         .insert([{
@@ -164,13 +159,10 @@ const AdminGenerator: React.FC = () => {
           category: generatedData.category,
           tags: generatedData.tags,
           created_at: new Date(),
-          created_by: user.id // FIX: Using real User ID instead of 'AI_AGENT'
+          created_by: user.id
         }]);
 
-      if (dbError) {
-        console.error("DB Error:", dbError);
-        throw new Error(`Database Save Failed: ${dbError.message}`);
-      }
+      if (dbError) throw new Error(`Database Save Failed: ${dbError.message}`);
 
       showToast('Published to Gallery successfully! 🎉');
       setGeneratedData(null);
@@ -179,7 +171,7 @@ const AdminGenerator: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      showToast(error.message, 'error'); // Show EXACT error in toast
+      showToast(error.message, 'error');
     } finally {
       setLoading(false);
     }
