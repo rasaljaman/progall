@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseService';
-import { Sparkles, RefreshCw, Palette, Image as ImageIcon, Zap } from 'lucide-react';
+import { Sparkles, RefreshCw, Palette, Image as ImageIcon, Zap, Wand2, Camera } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const AdminGenerator: React.FC = () => {
@@ -14,11 +14,11 @@ const AdminGenerator: React.FC = () => {
 
   const styles = [
     { name: 'No Style', prompt: '' },
-    { name: 'Anime', prompt: 'anime style, cel shaded, vibrant colors, studio ghibli aesthetic, highly detailed' },
-    { name: 'Cyberpunk', prompt: 'cyberpunk style, neon lights, futuristic, high tech, low life, blade runner aesthetic' },
-    { name: 'Realistic', prompt: 'hyper-realistic, 8k resolution, cinematic lighting, photorealistic, shot on 35mm lens' },
-    { name: 'Oil Painting', prompt: 'oil painting style, textured brushstrokes, classical art, detailed canvas' },
-    { name: '3D Render', prompt: '3D render, unreal engine 5, octane render, volumetric lighting, ray tracing' }
+    { name: 'Anime', prompt: 'anime style, studio ghibli, makoto shinkai, highly detailed, 8k, vibrant' },
+    { name: 'Cyberpunk', prompt: 'cyberpunk, neon noir, blade runner aesthetic, futuristic city, chromatic aberration' },
+    { name: 'Realistic', prompt: 'award winning photography, shot on Sony A7R IV, 85mm lens, f/1.8, bokeh, natural lighting' },
+    { name: 'Oil Painting', prompt: 'oil painting, thick impasto, textured brushstrokes, classical composition' },
+    { name: '3D Render', prompt: '3D render, unreal engine 5, octane render, ray tracing, subsurface scattering' }
   ];
 
   const handleGenerate = async () => {
@@ -31,47 +31,48 @@ const AdminGenerator: React.FC = () => {
     try {
       const styleInstruction = styles.find(s => s.name === selectedStyle)?.prompt || '';
       
-      // --- PHASE 1: GENERATE PROMPT (UNLIMITED POLLINATIONS TEXT API) ---
-      // We ask for a JSON string directly in the URL
+      // --- PHASE 1: GENERATE PROMPT (UNLIMITED TEXT API) ---
+      // We force the AI to write a "Midjourney v6" style prompt
       const systemPrompt = `
-        You are an AI Art Curator. 
+        You are an expert AI Prompt Engineer. 
         Topic: "${topic}". Style: "${styleInstruction}".
-        Task: Return a JSON object with 3 keys:
-        1. "prompt": A detailed visual description for image generation.
-        2. "category": One word category (e.g. Anime, Nature).
-        3. "tags": A list of 5 relevant hashtags.
-        Output ONLY valid JSON. No markdown.
+        
+        Task: Write a JSON object with:
+        1. "prompt": A highly descriptive prompt. INCLUDE camera settings (ISO, Aperture), lighting (volumetric, cinematic), and texture keywords (skin pores, fabric detail).
+        2. "category": Category name.
+        3. "tags": 5 hashtags.
+        
+        Output ONLY valid JSON.
       `;
 
-      // Use Pollinations Text API (No Key, Unlimited)
       const textResponse = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
-      
       if (!textResponse.ok) throw new Error("AI Brain is offline.");
       
       let rawText = await textResponse.text();
-      
-      // Clean up the text to ensure it is valid JSON
       rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
       
       let aiData;
       try {
         aiData = JSON.parse(rawText);
       } catch (e) {
-        console.warn("JSON Parse failed, falling back to manual");
-        // Fallback if AI replies with plain text
         aiData = {
-          prompt: `${topic}, ${styleInstruction}, highly detailed, 8k resolution, cinematic lighting`,
+          prompt: `${topic}, ${styleInstruction}, hyper-detailed, 8k, masterpiece, sharp focus`,
           category: 'AI Art',
-          tags: ['ai', 'generated', 'unlimited']
+          tags: ['ai', 'generated']
         };
       }
 
-      // --- PHASE 2: GENERATE IMAGE (UNLIMITED POLLINATIONS IMAGE API) ---
-      setStatus('Artist is painting... 🎨');
+      // --- PHASE 2: GENERATE IMAGE (TUNED FOR QUALITY) ---
+      setStatus('Rendering high-texture image... 📸');
       
-      const finalPrompt = aiData.prompt;
-      // Using Flux model (best quality) + Nologo + Private
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&model=flux&width=1280&height=720&seed=${Math.floor(Math.random() * 1000)}`;
+      // MAGIC TRICK: We append "Quality Boosters" to the end of the prompt manually
+      const qualityBoosters = "highly detailed, sharp focus, 8k, uhd, professional photography, masterpiece";
+      const finalPrompt = `${aiData.prompt}, ${styleInstruction}, ${qualityBoosters}`;
+      
+      // FIX: Removed 'enhance=true' (it causes blurring). 
+      // Kept 'model=flux' (best base model). 
+      // Added 'seed' randomization.
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&model=flux&width=1280&height=720&seed=${Math.floor(Math.random() * 99999)}`;
       
       setGeneratedData({
         ...aiData,
@@ -138,10 +139,10 @@ const AdminGenerator: React.FC = () => {
     <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-screen text-textPrimary">
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Zap className="text-yellow-400 fill-yellow-400" /> Unlimited AI Creator
+          <Camera className="text-accent" /> Pro AI Studio
         </h1>
         <p className="text-textSecondary mt-2">
-          Enter an idea. No limits. No API keys needed.
+          Unlimited generation. Professional photography tuning enabled.
         </p>
       </div>
 
@@ -174,8 +175,8 @@ const AdminGenerator: React.FC = () => {
             disabled={loading}
             className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 ${loading ? 'bg-gray-700 text-gray-400' : 'bg-accent text-white shadow-lg hover:scale-105 transition-transform'}`}
           >
-            {loading ? <RefreshCw className="animate-spin"/> : <Sparkles/>}
-            {loading ? 'Creating...' : 'Generate'}
+            {loading ? <RefreshCw className="animate-spin"/> : <Wand2/>}
+            {loading ? 'Developing...' : 'Generate Pro'}
           </button>
         </div>
         
@@ -191,7 +192,7 @@ const AdminGenerator: React.FC = () => {
             <div className="p-6 flex flex-col justify-between">
                <div className="space-y-4">
                   <div>
-                    <span className="text-xs font-bold text-gray-500 uppercase">Prompt</span>
+                    <span className="text-xs font-bold text-gray-500 uppercase">Pro Prompt</span>
                     <p className="text-sm bg-black/20 p-3 rounded-lg border border-white/5 mt-1 max-h-40 overflow-y-auto">
                       {generatedData.prompt}
                     </p>
