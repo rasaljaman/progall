@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabaseService';
-import { Sparkles, RefreshCw, Palette, Camera, Zap, AlertTriangle } from 'lucide-react';
+import { Sparkles, RefreshCw, ChevronDown, Zap, Brain, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const AdminGenerator: React.FC = () => {
@@ -8,14 +8,27 @@ const AdminGenerator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(''); 
   const [generatedData, setGeneratedData] = useState<any>(null);
-  const [selectedStyle, setSelectedStyle] = useState('Realistic'); // Default to Realistic
+  const [selectedStyle, setSelectedStyle] = useState('Realistic');
   
+  // ENGINE SELECTION STATE
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'pollinations'>('gemini');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const { showToast } = useToast();
 
-  // --- PROMPTING ENGINE ---
-  // These "Secret Ingredients" force the AI to look professional
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const styles: Record<string, string> = {
-    'No Style': 'highly detailed, sharp focus, 8k',
+    'No Style': 'highly detailed, sharp focus, 8k, uhd',
     'Anime': 'anime style, studio ghibli, makoto shinkai, vibrant colors, highly detailed, 8k resolution, cinematic lighting',
     'Cyberpunk': 'cyberpunk style, neon noir, blade runner aesthetic, futuristic city, chromatic aberration, wet streets, realistic texture',
     'Realistic': 'award winning photography, shot on Sony A7R IV, 85mm lens, f/1.8, depth of field, natural lighting, skin pores, hyper-realistic, 8k uhd',
@@ -23,18 +36,55 @@ const AdminGenerator: React.FC = () => {
     '3D Render': '3D render, unreal engine 5, octane render, ray tracing, volumetric lighting, subsurface scattering, 8k'
   };
 
+  // --- ENGINE 1: GEMINI (FIXED MODEL NAME) ---
+  const generateWithGemini = async (systemPrompt: string) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Gemini API Key missing in .env");
+
+    // FIX: Changed 'gemini-1.5-flash' to 'gemini-pro' (More stable)
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }]
+        })
+      }
+    );
+
+    if (response.status === 404) throw new Error("Gemini Model Not Found (Check API Key)");
+    if (response.status === 429) throw new Error("GEMINI_QUOTA");
+    if (!response.ok) throw new Error("Gemini Error");
+
+    const data = await response.json();
+    let text = data.candidates[0].content.parts[0].text;
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
+  };
+
+  // --- ENGINE 2: POLLINATIONS (UNLIMITED BACKUP) ---
+  const generateWithPollinations = async (systemPrompt: string) => {
+    // We send the prompt to Pollinations Text API
+    const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
+    if (!response.ok) throw new Error("Pollinations Text API Error");
+    
+    let text = await response.text();
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
+  };
+
   const handleGenerate = async () => {
     if (!topic) return showToast('Please enter a topic!', 'error');
 
     setLoading(true);
     setGeneratedData(null);
-    setStatus('Enhancing your idea... 🧠');
+    const engineName = aiProvider === 'gemini' ? 'Gemini 🧠' : 'Pollinations ⚡';
+    setStatus(`Consulting ${engineName}...`);
 
     try {
       const stylePrompt = styles[selectedStyle] || styles['No Style'];
       
-      // --- PHASE 1: GENERATE METADATA (Pollinations Text - Unlimited) ---
-      // We ask the AI to expand your simple idea into a full scene description
       const systemPrompt = `
         Act as a Pro Photographer. 
         Input: "${topic}". 
@@ -46,37 +96,31 @@ const AdminGenerator: React.FC = () => {
         Output ONLY JSON.
       `;
 
-      let aiData = {
-          prompt: `${topic}, ${stylePrompt}`,
-          category: 'AI Art',
-          tags: ['ai', 'generated']
-      };
+      let aiData;
 
       try {
-        const textResponse = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
-        if (textResponse.ok) {
-           let rawText = await textResponse.text();
-           // Clean cleanup to ensure valid JSON
-           rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-           const parsed = JSON.parse(rawText);
-           aiData = { ...parsed };
+        if (aiProvider === 'gemini') {
+           aiData = await generateWithGemini(systemPrompt);
+        } else {
+           aiData = await generateWithPollinations(systemPrompt);
         }
-      } catch (e) {
-         console.warn("Text brain failed, using manual fallback.");
+      } catch (error: any) {
+        console.warn("Primary engine failed:", error.message);
+        
+        // AUTO-SWITCH LOGIC
+        if (error.message === "GEMINI_QUOTA" || error.message.includes("Gemini")) {
+           showToast("Gemini failed. Switching to Unlimited mode.", 'success');
+           setAiProvider('pollinations'); // Update UI to show we switched
+           aiData = await generateWithPollinations(systemPrompt); // Retry immediately
+        } else {
+           throw error;
+        }
       }
 
       // --- PHASE 2: GENERATE IMAGE (Pollinations Flux) ---
-      // This is the "Magic Sauce" that fixes quality
       setStatus('Rendering high-fidelity image... 📸');
       
-      // We combine the AI's description + our "Pro Style" keywords
       const finalPrompt = `${aiData.prompt}, ${stylePrompt}`;
-      
-      // KEY SETTINGS:
-      // model=flux (Best quality)
-      // seed=random (Ensures a new image every time)
-      // width/height=HD (Cinematic look)
-      // nologo=true (Removes watermark)
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&model=flux&width=1280&height=720&seed=${Math.floor(Math.random() * 99999)}`;
       
       setGeneratedData({
@@ -89,7 +133,7 @@ const AdminGenerator: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      showToast('Something went wrong. Try again.', 'error');
+      showToast('Generation failed. Try switching engines manually.', 'error');
       setStatus('Error occurred.');
     } finally {
       setLoading(false);
@@ -143,17 +187,17 @@ const AdminGenerator: React.FC = () => {
     <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-screen text-textPrimary">
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Zap className="text-yellow-400 fill-yellow-400" /> Unlimited AI Studio
+          <Sparkles className="text-accent" /> AI Auto-Creator
         </h1>
         <p className="text-textSecondary mt-2">
-          Stable, Unlimited, and Tuned for Quality.
+          Enter a simple idea. Use Gemini for smarts, or Pollinations for unlimited speed.
         </p>
       </div>
 
       <div className="bg-surface border border-surfaceHighlight p-6 rounded-2xl shadow-lg mb-8">
         <div className="mb-4">
            <label className="text-xs font-bold text-textSecondary uppercase tracking-widest mb-2 block">
-             Choose Style (Tuned for Realism)
+             Choose Style
            </label>
            <div className="flex flex-wrap gap-2">
              {Object.keys(styles).map(styleName => (
@@ -177,14 +221,52 @@ const AdminGenerator: React.FC = () => {
             className="flex-1 bg-black/20 border border-surfaceHighlight rounded-xl px-4 py-3 text-white outline-none focus:border-accent"
             disabled={loading}
           />
-          <button 
-            onClick={handleGenerate}
-            disabled={loading}
-            className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 ${loading ? 'bg-gray-700 text-gray-400' : 'bg-accent text-white shadow-lg hover:scale-105 transition-transform'}`}
-          >
-            {loading ? <RefreshCw className="animate-spin"/> : <Sparkles/>}
-            {loading ? 'Creating...' : 'Generate'}
-          </button>
+          
+          {/* SPLIT BUTTON COMPONENT */}
+          <div className="relative flex items-center" ref={dropdownRef}>
+            <button 
+                onClick={handleGenerate}
+                disabled={loading}
+                className="bg-accent hover:bg-accent/80 text-white font-bold py-3 pl-6 pr-4 rounded-l-xl border-r border-black/20 flex items-center gap-2 transition-all h-full"
+            >
+                {loading ? <RefreshCw className="animate-spin" size={18}/> : aiProvider === 'gemini' ? <Brain size={18}/> : <Zap size={18}/>}
+                {loading ? 'Working...' : 'Generate'}
+            </button>
+            <button 
+                onClick={() => setShowDropdown(!showDropdown)}
+                disabled={loading}
+                className="bg-accent hover:bg-accent/80 text-white font-bold py-3 px-3 rounded-r-xl transition-all h-full flex items-center justify-center"
+            >
+                <ChevronDown size={18} className={`transition-transform ${showDropdown ? 'rotate-180' : ''}`}/>
+            </button>
+
+            {/* DROPDOWN MENU */}
+            {showDropdown && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-surface border border-surfaceHighlight rounded-xl shadow-2xl overflow-hidden z-50">
+                    <div className="p-2 text-xs font-bold text-textSecondary uppercase tracking-wider">Select AI Brain</div>
+                    <button 
+                        onClick={() => { setAiProvider('gemini'); setShowDropdown(false); }}
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors ${aiProvider === 'gemini' ? 'text-accent' : 'text-textPrimary'}`}
+                    >
+                        <Brain size={16} />
+                        <div>
+                            <div className="font-bold">Google Gemini</div>
+                            <div className="text-xs text-textSecondary">Smartest, but has limits.</div>
+                        </div>
+                    </button>
+                    <button 
+                        onClick={() => { setAiProvider('pollinations'); setShowDropdown(false); }}
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors ${aiProvider === 'pollinations' ? 'text-accent' : 'text-textPrimary'}`}
+                    >
+                        <Zap size={16} />
+                        <div>
+                            <div className="font-bold">Pollinations AI</div>
+                            <div className="text-xs text-textSecondary">Unlimited & Free.</div>
+                        </div>
+                    </button>
+                </div>
+            )}
+          </div>
         </div>
         
         {status && <div className="mt-4 text-sm font-mono text-accent animate-pulse">&gt; {status}</div>}
@@ -199,7 +281,7 @@ const AdminGenerator: React.FC = () => {
             <div className="p-6 flex flex-col justify-between">
                <div className="space-y-4">
                   <div>
-                    <span className="text-xs font-bold text-gray-500 uppercase">Pro Prompt</span>
+                    <span className="text-xs font-bold text-gray-500 uppercase">AI Prompt ({aiProvider})</span>
                     <p className="text-sm bg-black/20 p-3 rounded-lg border border-white/5 mt-1 max-h-40 overflow-y-auto">
                       {generatedData.prompt}
                     </p>
