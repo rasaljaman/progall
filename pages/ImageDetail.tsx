@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { supabaseService, supabase } from '../services/supabaseService';
+// IMPORT ANALYTICS
+import { logUserEvent } from '../services/firebaseAnalytics';
 import { ImageItem } from '../types';
-import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react'; // Removed 'Pin'
+import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react'; 
 import { getAdminColor } from '../constants'; 
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
@@ -41,8 +43,18 @@ const ImageDetail: React.FC = () => {
       }
 
       setImage(currentImg);
+      
+      // --- TRACK: VIEW ITEM (TRENDING) ---
+      logUserEvent('view_item', {
+        item_id: currentImg.id,
+        item_name: currentImg.prompt.substring(0, 50),
+        item_category: currentImg.category
+      });
+
+      // Existing Supabase tracking (Optional to keep)
       supabaseService.trackEvent('VIEW', { image_id: currentImg.id, category: currentImg.category });
 
+      // --- RELATED IMAGES LOGIC ---
       const { data: allImages } = await supabase
         .from('images')
         .select('*')
@@ -82,13 +94,25 @@ const ImageDetail: React.FC = () => {
     if (image) {
       navigator.clipboard.writeText(image.prompt);
       showToast('Prompt copied successfully! 🎨');
+      
+      // --- TRACK: COPY ---
+      logUserEvent('copy_prompt', { 
+        item_id: image.id,
+        prompt_length: image.prompt.length 
+      });
       supabaseService.trackEvent('COPY', { image_id: image.id });
     }
   };
   
   const handleGeminiRemix = () => {
     if (image) {
+      // --- TRACK: REMIX ---
+      logUserEvent('remix_gemini', { 
+        item_id: image.id,
+        category: image.category 
+      });
       supabaseService.trackEvent('REMIX', { image_id: image.id, category: image.category });
+      
       const newTab = window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
         .then(() => {
@@ -100,13 +124,38 @@ const ImageDetail: React.FC = () => {
     }
   };
 
+  const handleDownload = () => {
+    if (!image) return;
+    
+    // --- TRACK: DOWNLOAD ---
+    logUserEvent('download_image', {
+      item_id: image.id,
+      category: image.category
+    });
+    
+    // Trigger download
+    const link = document.createElement('a');
+    link.href = image.url;
+    link.target = '_blank';
+    link.download = `ProGall-${image.id}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // --- SMART SHARE FUNCTION ---
   const handleShare = async () => {
     if (!image) return;
 
+    // --- TRACK: SHARE START ---
+    logUserEvent('share', {
+      method: navigator.share ? 'native' : 'clipboard',
+      item_id: image.id
+    });
+
     try {
       if (navigator.share) {
-        // Fetch Image Blob
+        // Fetch Image Blob for richer sharing
         const response = await fetch(image.url);
         const blob = await response.blob();
         const file = new File([blob], 'art.webp', { type: blob.type });
@@ -214,16 +263,16 @@ const ImageDetail: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button onClick={handleGeminiRemix} className="col-span-full py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg">
+              <button onClick={handleGeminiRemix} className="col-span-full py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-transform">
                 <Sparkles size={20}/> Remix on Gemini
               </button>
               
               <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
                 <Share2 size={18}/> Share
               </button>
-              <a href={image.url} download target="_blank" rel="noreferrer" className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
+              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
                 <Download size={18}/> Download
-              </a>
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-2">

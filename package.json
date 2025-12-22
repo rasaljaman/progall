@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "2.39.3",
     "browser-image-compression": "^2.0.2",
+    "firebase": "^12.7.0",
     "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-confetti": "^6.4.0",
