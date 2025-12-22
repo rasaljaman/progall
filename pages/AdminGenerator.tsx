@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabaseService';
-import { Sparkles, RefreshCw, ChevronDown, Zap, Brain, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, RefreshCw, ChevronDown, Zap, Brain, AlertTriangle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const AdminGenerator: React.FC = () => {
@@ -10,7 +10,7 @@ const AdminGenerator: React.FC = () => {
   const [generatedData, setGeneratedData] = useState<any>(null);
   const [selectedStyle, setSelectedStyle] = useState('Realistic');
   
-  // ENGINE SELECTION STATE
+  // --- DEFAULT IS GEMINI (SMART MODE) ---
   const [aiProvider, setAiProvider] = useState<'gemini' | 'pollinations'>('gemini');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -36,12 +36,12 @@ const AdminGenerator: React.FC = () => {
     '3D Render': '3D render, unreal engine 5, octane render, ray tracing, volumetric lighting, subsurface scattering, 8k'
   };
 
-  // --- ENGINE 1: GEMINI (FIXED MODEL NAME) ---
+  // --- ENGINE 1: GEMINI PRO (PRIMARY) ---
   const generateWithGemini = async (systemPrompt: string) => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Gemini API Key missing in .env");
+    if (!apiKey) throw new Error("Gemini API Key is missing in .env file");
 
-    // FIX: Changed 'gemini-1.5-flash' to 'gemini-pro' (More stable)
+    // Using the standard 'gemini-pro' model
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
       {
@@ -53,21 +53,24 @@ const AdminGenerator: React.FC = () => {
       }
     );
 
-    if (response.status === 404) throw new Error("Gemini Model Not Found (Check API Key)");
-    if (response.status === 429) throw new Error("GEMINI_QUOTA");
-    if (!response.ok) throw new Error("Gemini Error");
+    if (response.status === 404) throw new Error("GEMINI_404_NOT_FOUND"); // Key exists but service disabled
+    if (response.status === 429) throw new Error("GEMINI_QUOTA_FULL");
+    if (!response.ok) throw new Error(`Gemini Error: ${response.status}`);
 
     const data = await response.json();
-    let text = data.candidates[0].content.parts[0].text;
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!text) throw new Error("Gemini returned empty response");
+
+    // Clean up JSON format
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(text);
   };
 
-  // --- ENGINE 2: POLLINATIONS (UNLIMITED BACKUP) ---
+  // --- ENGINE 2: POLLINATIONS (BACKUP) ---
   const generateWithPollinations = async (systemPrompt: string) => {
-    // We send the prompt to Pollinations Text API
     const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}`);
-    if (!response.ok) throw new Error("Pollinations Text API Error");
+    if (!response.ok) throw new Error("Backup Brain is offline");
     
     let text = await response.text();
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -79,46 +82,61 @@ const AdminGenerator: React.FC = () => {
 
     setLoading(true);
     setGeneratedData(null);
-    const engineName = aiProvider === 'gemini' ? 'Gemini 🧠' : 'Pollinations ⚡';
+    
+    // UI Update
+    const engineName = aiProvider === 'gemini' ? 'Gemini Pro 🧠' : 'Pollinations ⚡';
     setStatus(`Consulting ${engineName}...`);
 
     try {
       const stylePrompt = styles[selectedStyle] || styles['No Style'];
       
       const systemPrompt = `
-        Act as a Pro Photographer. 
-        Input: "${topic}". 
-        Style: "${selectedStyle}".
-        Task: Return valid JSON with:
-        1. "prompt": A vivid, descriptive paragraph expanding on the input. Describe lighting, camera angle, and textures.
-        2. "category": A single category name.
-        3. "tags": 5 relevant hashtags.
-        Output ONLY JSON.
+        Act as a Professional AI Art Director.
+        Input Idea: "${topic}"
+        Selected Style: "${selectedStyle}"
+        
+        Task: Create a highly detailed JSON object for image generation.
+        JSON Structure:
+        {
+          "prompt": "Write a massive, detailed paragraph describing the image. Include camera settings (ISO, lens), lighting (volumetric, cinematic), and textures.",
+          "category": "A single word category",
+          "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+        }
+        
+        IMPORTANT: Output ONLY valid JSON. No Markdown.
       `;
 
       let aiData;
 
       try {
         if (aiProvider === 'gemini') {
+           // Try Gemini First
            aiData = await generateWithGemini(systemPrompt);
         } else {
+           // Manual override to Pollinations
            aiData = await generateWithPollinations(systemPrompt);
         }
       } catch (error: any) {
-        console.warn("Primary engine failed:", error.message);
+        console.warn("Primary Engine Failed:", error.message);
         
-        // AUTO-SWITCH LOGIC
-        if (error.message === "GEMINI_QUOTA" || error.message.includes("Gemini")) {
-           showToast("Gemini failed. Switching to Unlimited mode.", 'success');
-           setAiProvider('pollinations'); // Update UI to show we switched
-           aiData = await generateWithPollinations(systemPrompt); // Retry immediately
+        // --- SMART FALLBACK LOGIC ---
+        if (aiProvider === 'gemini') {
+           let errorMsg = "Gemini failed. Switching to Unlimited Backup.";
+           if (error.message === "GEMINI_404_NOT_FOUND") errorMsg = "Gemini Service not enabled. Using Backup.";
+           
+           showToast(errorMsg, 'error');
+           setStatus("Gemini failed, using Backup Brain... ⚡");
+           
+           // Automatically try the backup
+           setAiProvider('pollinations'); // Update UI
+           aiData = await generateWithPollinations(systemPrompt);
         } else {
-           throw error;
+           throw error; // If backup fails, stop.
         }
       }
 
       // --- PHASE 2: GENERATE IMAGE (Pollinations Flux) ---
-      setStatus('Rendering high-fidelity image... 📸');
+      setStatus('Rendering High-Quality Image... 📸');
       
       const finalPrompt = `${aiData.prompt}, ${stylePrompt}`;
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?nologo=true&private=true&model=flux&width=1280&height=720&seed=${Math.floor(Math.random() * 99999)}`;
@@ -133,7 +151,7 @@ const AdminGenerator: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      showToast('Generation failed. Try switching engines manually.', 'error');
+      showToast('Generation failed completely.', 'error');
       setStatus('Error occurred.');
     } finally {
       setLoading(false);
@@ -187,10 +205,10 @@ const AdminGenerator: React.FC = () => {
     <div className="p-6 md:p-12 max-w-4xl mx-auto min-h-screen text-textPrimary">
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Sparkles className="text-accent" /> AI Auto-Creator
+          <Brain className="text-accent" /> Gemini Pro Studio
         </h1>
         <p className="text-textSecondary mt-2">
-          Enter a simple idea. Use Gemini for smarts, or Pollinations for unlimited speed.
+          Powered by Gemini Pro. Falls back to Pollinations if quota exceeded.
         </p>
       </div>
 
@@ -215,14 +233,14 @@ const AdminGenerator: React.FC = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <input 
             type="text" 
-            placeholder="e.g. A futuristic city..." 
+            placeholder="e.g. A cute girl portrait..." 
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             className="flex-1 bg-black/20 border border-surfaceHighlight rounded-xl px-4 py-3 text-white outline-none focus:border-accent"
             disabled={loading}
           />
           
-          {/* SPLIT BUTTON COMPONENT */}
+          {/* SPLIT BUTTON */}
           <div className="relative flex items-center" ref={dropdownRef}>
             <button 
                 onClick={handleGenerate}
@@ -230,7 +248,7 @@ const AdminGenerator: React.FC = () => {
                 className="bg-accent hover:bg-accent/80 text-white font-bold py-3 pl-6 pr-4 rounded-l-xl border-r border-black/20 flex items-center gap-2 transition-all h-full"
             >
                 {loading ? <RefreshCw className="animate-spin" size={18}/> : aiProvider === 'gemini' ? <Brain size={18}/> : <Zap size={18}/>}
-                {loading ? 'Working...' : 'Generate'}
+                {loading ? 'Thinking...' : aiProvider === 'gemini' ? 'Generate 🧠' : 'Generate ⚡'}
             </button>
             <button 
                 onClick={() => setShowDropdown(!showDropdown)}
@@ -251,7 +269,7 @@ const AdminGenerator: React.FC = () => {
                         <Brain size={16} />
                         <div>
                             <div className="font-bold">Google Gemini</div>
-                            <div className="text-xs text-textSecondary">Smartest, but has limits.</div>
+                            <div className="text-xs text-textSecondary">Best Quality & Accuracy.</div>
                         </div>
                     </button>
                     <button 
@@ -261,7 +279,7 @@ const AdminGenerator: React.FC = () => {
                         <Zap size={16} />
                         <div>
                             <div className="font-bold">Pollinations AI</div>
-                            <div className="text-xs text-textSecondary">Unlimited & Free.</div>
+                            <div className="text-xs text-textSecondary">Unlimited Backup.</div>
                         </div>
                     </button>
                 </div>
