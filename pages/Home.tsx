@@ -9,7 +9,7 @@ const Home: React.FC = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // --- SEARCH 2.0 STATE ---
+  // --- SEARCH 2.0 STATE 
   const [inputValue, setInputValue] = useState(''); // Immediate text
   const [debouncedQuery, setDebouncedQuery] = useState(''); // Delayed query (for filtering)
   const [isSearching, setIsSearching] = useState(false); // For spinner
