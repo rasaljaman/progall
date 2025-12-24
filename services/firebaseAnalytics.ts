@@ -15,7 +15,6 @@ const firebaseConfig = {
 let analytics: Analytics | null = null;
 
 // 2. Initialize ONLY if keys are present
-// This prevents the "White Screen of Death" if .env is empty
 if (firebaseConfig.projectId && firebaseConfig.apiKey) {
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
