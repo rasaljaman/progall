@@ -1,111 +1,54 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Carousel from '../components/Carousel';
-import GalleryGrid from '../components/GalleryGrid';
-import { ImageItem, SortOption } from '../types';
 import { supabaseService } from '../services/supabaseService';
-import { Search, Filter, ArrowDownUp, Clock, X } from 'lucide-react';
+import { ImageItem } from '../types';
+import { Search, X, Copy, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Home: React.FC = () => {
+  // --- STATE ---
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // --- SEARCH 2.0 STATE 
-  const [inputValue, setInputValue] = useState(''); // Immediate text
-  const [debouncedQuery, setDebouncedQuery] = useState(''); // Delayed query (for filtering)
-  const [isSearching, setIsSearching] = useState(false); // For spinner
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortOption, setSortOption] = useState<SortOption>('newest');
-  const [dynamicCategories, setDynamicCategories] = useState<string[]>(['All']);
-
-  // Scroll State
-  const [showControls, setShowControls] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  // --- 1. Load History on Mount ---
-  useEffect(() => {
-    const saved = localStorage.getItem('searchHistory');
-    if (saved) setSearchHistory(JSON.parse(saved));
-  }, []);
-
-  // --- 2. Debounce Logic (Anti-Lag) ---
-  useEffect(() => {
-    if (inputValue !== debouncedQuery) {
-      setIsSearching(true);
-      const timer = setTimeout(() => {
-        setDebouncedQuery(inputValue);
-        setIsSearching(false);
-      }, 500); // Wait 500ms
-      return () => clearTimeout(timer);
-    }
-  }, [inputValue, debouncedQuery]);
+  // Search
+  const [inputValue, setInputValue] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   
-    // Add this useEffect to track searches
-  useEffect(() => {
-    if (debouncedQuery && debouncedQuery.length > 2) {
-      supabaseService.trackEvent('SEARCH', { term: debouncedQuery });
-    }
-  }, [debouncedQuery]);
+  // Categories (Incremental Loading)
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [dynamicCategories, setDynamicCategories] = useState<{name: string, count: number}[]>([]);
+  const [categoryLimit, setCategoryLimit] = useState(10); // Default show 10
+  
+  // UX State
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-
-  // --- 3. History Helper ---
-  const addToHistory = (query: string) => {
-    if (!query.trim()) return;
-    const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 5);
-    setSearchHistory(newHistory);
-    localStorage.setItem('searchHistory', JSON.stringify(newHistory));
-  };
-
-  const handleSearchSelect = (query: string) => {
-    setInputValue(query);
-    setDebouncedQuery(query);
-    setShowHistory(false);
-    addToHistory(query);
-  };
-
-  // Close history on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        setShowHistory(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // --- 4. Scroll Logic ---
-  useEffect(() => {
-    const controlControls = () => {
-      if (typeof window !== 'undefined') {
-        const currentScrollY = window.scrollY;
-        // Hide if scrolling DOWN and not at the very top
-        if (currentScrollY > lastScrollY && currentScrollY > 400) {
-          setShowControls(false);
-        } else {
-          setShowControls(true);
-        }
-        setLastScrollY(currentScrollY);
-      }
-    };
-    window.addEventListener('scroll', controlControls);
-    return () => window.removeEventListener('scroll', controlControls);
-  }, [lastScrollY]);
-
-  // --- 5. Fetch Data ---
+  // --- 1. INITIAL LOAD & ANALYTICS SORTING ---
   useEffect(() => {
     const fetchImages = async () => {
       setLoading(true);
       try {
         const data = await supabaseService.getImages();
-        setImages(data);
+        
+        // Sort by Popularity Score (Downloads > Copies > Views)
+        const sortedData = data.sort((a, b) => {
+          const scoreA = ((a.downloads_count || 0) * 3) + ((a.copies_count || 0) * 2) + ((a.views_count || 0) * 1);
+          const scoreB = ((b.downloads_count || 0) * 3) + ((b.copies_count || 0) * 2) + ((b.views_count || 0) * 1);
+          return scoreB - scoreA;
+        });
+
+        setImages(sortedData);
+
+        // Extract & Sort Categories
         if (data.length > 0) {
-          const allCats = data.map(img => img.category);
-          const uniqueCats = Array.from(new Set(allCats));
-          setDynamicCategories(['All', ...uniqueCats.sort()]);
+          const catCounts: Record<string, number> = {};
+          data.forEach(img => {
+            catCounts[img.category] = (catCounts[img.category] || 0) + 1;
+          });
+          
+          const sortedCats = Object.entries(catCounts)
+            .sort(([,a], [,b]) => b - a)
+            .map(([name, count]) => ({ name, count }));
+            
+          setDynamicCategories([{ name: 'All', count: data.length }, ...sortedCats]);
         }
       } catch (error) {
         console.error('Error fetching images:', error);
@@ -116,138 +59,178 @@ const Home: React.FC = () => {
     fetchImages();
   }, []);
 
-  const featuredImages = useMemo(() => {
-    const featured = images.filter(img => img.is_featured === true);
-    return featured.length > 0 ? featured : images.slice(0, 5);
-  }, [images]);
+  // --- 2. DEBOUNCED SEARCH ---
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(inputValue);
+      if (inputValue.length > 2) supabaseService.trackEvent('SEARCH', { term: inputValue });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
 
-  // --- 6. Filtering (Uses debouncedQuery) ---
+  // --- 3. FILTER LOGIC ---
   const filteredImages = useMemo(() => {
     let result = [...images];
+
     if (debouncedQuery) {
       const q = debouncedQuery.toLowerCase();
-      result = result.filter(
-        (img) => img.prompt.toLowerCase().includes(q) || img.tags.some((tag) => tag.toLowerCase().includes(q))
+      result = result.filter(img => 
+          img.prompt.toLowerCase().includes(q) || img.tags?.some(tag => tag.toLowerCase().includes(q))
       );
     }
+
     if (selectedCategory !== 'All') {
-      result = result.filter((img) => img.category === selectedCategory);
+      result = result.filter(img => img.category === selectedCategory);
     }
-    if (sortOption === 'newest') {
-        result.sort((a, b) => (b.created_at || b.id).localeCompare(a.created_at || a.id));
-    } else if (sortOption === 'oldest') {
-        result.sort((a, b) => (a.created_at || a.id).localeCompare(b.created_at || b.id));
-    }
+
     return result;
-  }, [images, debouncedQuery, selectedCategory, sortOption]);
+  }, [images, debouncedQuery, selectedCategory]);
+
+  // --- 4. CATEGORY PAGINATION LOGIC ---
+  const visibleCategories = dynamicCategories.slice(0, categoryLimit);
+  
+  const handleShowMoreCategories = () => {
+    if (categoryLimit >= dynamicCategories.length) {
+      setCategoryLimit(10); // Reset to default
+    } else {
+      setCategoryLimit(prev => prev + 10); // Show next 10
+    }
+  };
+
+  // --- 5. HANDLERS ---
+  const handleCopy = (e: React.MouseEvent, text: string, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    supabaseService.trackEvent('COPY_PROMPT', { image_id: id });
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   return (
-    <div className="min-h-screen pb-10 page-enter">
+    <div className="min-h-screen pb-20 bg-background text-textPrimary page-enter">
       
-      <section className="mb-6">
-        {loading ? (
-          <div className="max-w-6xl mx-auto px-4 mt-6">
-            <div className="w-full h-64 md:h-96 bg-surfaceHighlight rounded-2xl animate-pulse border border-white/5 shadow-xl"></div>
-          </div>
-        ) : (
-          featuredImages.length > 0 && <Carousel images={featuredImages} />
-        )}
-      </section>
-
-      {/* SEO Text (Moved up slightly for better visibility) */}
-      <section className="max-w-4xl mx-auto px-4 text-center mb-6 mt-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-textPrimary mb-3">
-          Discover the Best AI Art Prompts
-        </h1>
-        <p className="text-textSecondary text-sm md:text-base leading-relaxed">
-          Browse our extensive gallery of high-quality AI-generated images. 
-          Copy exact prompts for Midjourney, Stable Diffusion, and DALL-E to recreate 
-          stunning styles in Anime, Cyberpunk, 3D Render, and Photorealistic aesthetics.
-        </p>
-      </section>
-
-      {/* --- SMART CONTROLS SECTION --- */}
-      <section 
-        className={`sticky top-16 z-40 bg-surface/95 backdrop-blur py-4 px-4
-        border-b border-surfaceHighlight mb-6 transition-all duration-300
-        ease-in-out ${
-          showControls 
-            ? 'translate-y-0 opacity-100 shadow-lg' 
-            : '-translate-y-full opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between">
-          
-          {/* Filters Row */}
-          <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
-             <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
-                <Filter size={16} className="ml-2 mr-2 text-textSecondary"/>
-                <select 
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="bg-transparent text-sm text-textPrimary focus:outline-none p-1 pr-4 cursor-pointer"
-                >
-                    {dynamicCategories.map(cat => (
-                        <option key={cat} value={cat} className="bg-surface text-textPrimary">{cat}</option>
-                    ))}
-                </select>
-             </div>
-
-             <div className="flex items-center bg-surface rounded-lg p-1 border border-surfaceHighlight">
-                <ArrowDownUp size={16} className="ml-2 mr-2 text-textSecondary"/>
-                <select 
-                    value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value as SortOption)}
-                    className="bg-transparent text-sm text-textPrimary focus:outline-none p-1 pr-4 cursor-pointer"
-                >
-                    <option value="newest" className="bg-surface text-textPrimary">Newest</option>
-                    <option value="oldest" className="bg-surface text-textPrimary">Oldest</option>
-                </select>
-             </div>
-          </div>
-
-          {/* SEARCH BAR 2.0 */}
-          <div className="relative w-full md:w-96 group" ref={searchContainerRef}>
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-textSecondary group-focus-within:text-accent transition-colors">
-              {/* Spinner while debouncing */}
-              {isSearching ? <div className="animate-spin h-4 w-4 border-2 border-accent border-t-transparent rounded-full"/> : <Search size={18} />}
-            </div>
-            
+      {/* --- STICKY HEADER SECTION --- */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-white/5 shadow-md transition-all">
+        
+        {/* Search Bar */}
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textSecondary" size={18} />
             <input
               type="text"
               placeholder="Search prompts..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onFocus={() => setShowHistory(true)}
-              onKeyDown={(e) => e.key === 'Enter' && addToHistory(inputValue)}
-              className="w-full bg-surface border border-surfaceHighlight text-textPrimary rounded-lg pl-10 pr-10 py-2 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-textSecondary"
+              className="w-full bg-surfaceHighlight border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-accent focus:border-accent outline-none"
             />
-            
-            {/* Clear Button */}
-            {inputValue && (
-               <button onClick={() => { setInputValue(''); setDebouncedQuery(''); }} className="absolute inset-y-0 right-3 flex items-center text-textSecondary hover:text-textPrimary">
+             {inputValue && (
+               <button onClick={() => setInputValue('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary">
                   <X size={16} />
                </button>
             )}
-
-            {/* SEARCH HISTORY DROPDOWN */}
-            {showHistory && searchHistory.length > 0 && !inputValue && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-surfaceHighlight rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                <div className="px-3 py-2 text-xs font-bold text-textSecondary bg-surfaceHighlight/50 uppercase">Recent Searches</div>
-                {searchHistory.map((term, i) => (
-                  <button key={i} onClick={() => handleSearchSelect(term)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 border-b border-surfaceHighlight last:border-0 transition-colors">
-                    <Clock size={14} className="text-textSecondary" /> {term}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
-      </section>
 
-      <section className="max-w-7xl mx-auto min-h-[50vh]">
-        <GalleryGrid images={filteredImages} loading={loading} />
-      </section>
+        {/* Categories (Wrapping + Pagination) */}
+        <div className="max-w-7xl mx-auto px-4 pb-3">
+          <div className="flex flex-wrap gap-2">
+            
+            {/* Render Visible Categories */}
+            {visibleCategories.map((cat) => (
+              <button
+                key={cat.name}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`
+                  px-3 py-1.5 rounded-md text-xs font-medium border transition-all flex items-center gap-2
+                  ${selectedCategory === cat.name 
+                    ? 'bg-accent text-white border-accent' 
+                    : 'bg-surfaceHighlight text-textSecondary border-white/5 hover:bg-surfaceHighlight/80 hover:text-white'}
+                `}
+              >
+                {cat.name}
+                <span className="opacity-50 text-[10px] bg-black/20 px-1.5 rounded-full">{cat.count}</span>
+              </button>
+            ))}
+
+            {/* "Show More" Button - styled exactly like a tag */}
+            {dynamicCategories.length > 10 && (
+              <button
+                onClick={handleShowMoreCategories}
+                className="px-3 py-1.5 rounded-md text-xs font-bold border bg-surfaceHighlight text-accent border-accent/20 hover:bg-surfaceHighlight/80 hover:border-accent/50 flex items-center gap-1 transition-all"
+              >
+                {categoryLimit >= dynamicCategories.length ? (
+                  <>Show Less <ChevronUp size={12} /></>
+                ) : (
+                  <>+{Math.min(10, dynamicCategories.length - categoryLimit)} More <ChevronDown size={12} /></>
+                )}
+              </button>
+            )}
+
+          </div>
+        </div>
+      </div>
+
+      {/* --- MAIN GRID --- */}
+      <main className="max-w-7xl mx-auto px-4 mt-6 min-h-[60vh]">
+        {loading ? (
+          // Skeletons
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="aspect-[2/3] bg-surfaceHighlight rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          // Images: columns-1 (Mobile), columns-3 (Tablet), columns-4 (Desktop)
+          <div className="columns-1 md:columns-3 lg:columns-4 gap-4 space-y-4">
+            {filteredImages.map((img) => (
+              <div key={img.id} className="break-inside-avoid relative group mb-4">
+                
+                <Link to={`/image/${img.id}`} className="block relative overflow-hidden rounded-xl bg-surfaceHighlight">
+                  <img 
+                    src={img.url} 
+                    alt={img.prompt} 
+                    loading="lazy"
+                    className="w-full h-auto transition-transform duration-500 group-hover:scale-105"
+                  />
+                  
+                  {/* HOVER OVERLAY - UPDATED: Transparent & Blurred */}
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-4">
+                    
+                    {/* Prompt Preview - Text Shadow added for readability over image */}
+                    <p className="text-white text-sm line-clamp-4 mb-4 leading-relaxed font-medium drop-shadow-md">
+                      "{img.prompt}"
+                    </p>
+
+                    {/* Action Bar */}
+                    <div className="flex items-center justify-between gap-3">
+                       <button
+                        onClick={(e) => handleCopy(e, img.prompt, img.id)}
+                        className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${
+                            copiedId === img.id 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-white text-black hover:bg-gray-200'
+                        }`}
+                       >
+                         {copiedId === img.id ? <Check size={16} /> : <Copy size={16} />}
+                         {copiedId === img.id ? 'Copied' : 'Copy'}
+                       </button>
+
+                       {/* Stats Badge */}
+                       {(img.downloads_count || img.copies_count) && (
+                           <div className="text-xs text-white flex flex-col items-center px-1 drop-shadow-md">
+                               <Download size={14} />
+                               <span>{img.downloads_count || 0}</span>
+                           </div>
+                       )}
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 };
