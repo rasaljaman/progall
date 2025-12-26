@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import Carousel from '../components/Carousel'; // Restored Import
 import { supabaseService } from '../services/supabaseService';
-import { ImageItem } from '../types';
+import { ImageItem, SortOption } from '../types';
 import { Search, X, Copy, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -16,7 +17,7 @@ const Home: React.FC = () => {
   // Categories (Incremental Loading)
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [dynamicCategories, setDynamicCategories] = useState<{name: string, count: number}[]>([]);
-  const [categoryLimit, setCategoryLimit] = useState(10); // Default show 10
+  const [categoryLimit, setCategoryLimit] = useState(10); // Start with 10 tags
   
   // UX State
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -29,6 +30,7 @@ const Home: React.FC = () => {
         const data = await supabaseService.getImages();
         
         // Sort by Popularity Score (Downloads > Copies > Views)
+        // If no stats exist, it falls back to Creation Date implicitly via logic
         const sortedData = data.sort((a, b) => {
           const scoreA = ((a.downloads_count || 0) * 3) + ((a.copies_count || 0) * 2) + ((a.views_count || 0) * 1);
           const scoreB = ((b.downloads_count || 0) * 3) + ((b.copies_count || 0) * 2) + ((b.views_count || 0) * 1);
@@ -68,7 +70,16 @@ const Home: React.FC = () => {
     return () => clearTimeout(timer);
   }, [inputValue]);
 
-  // --- 3. FILTER LOGIC ---
+  // --- 3. FILTER LOGIC & FEATURED ---
+  
+  // Featured Images (For Carousel) - Restored
+  const featuredImages = useMemo(() => {
+    const featured = images.filter(img => img.is_featured === true);
+    // If no featured images, take top 5 sorted by popularity
+    return featured.length > 0 ? featured : images.slice(0, 5);
+  }, [images]);
+
+  // Filtered Images (For Grid)
   const filteredImages = useMemo(() => {
     let result = [...images];
 
@@ -91,7 +102,7 @@ const Home: React.FC = () => {
   
   const handleShowMoreCategories = () => {
     if (categoryLimit >= dynamicCategories.length) {
-      setCategoryLimit(10); // Reset to default
+      setCategoryLimit(10); // Reset
     } else {
       setCategoryLimit(prev => prev + 10); // Show next 10
     }
@@ -110,7 +121,31 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 bg-background text-textPrimary page-enter">
       
-      {/* --- STICKY HEADER SECTION --- */}
+      {/* --- SECTION 1: CAROUSEL (Restored) --- */}
+      <section className="mb-6">
+        {loading ? (
+          // Carousel Skeleton
+          <div className="max-w-6xl mx-auto px-4 mt-6">
+            <div className="w-full h-64 md:h-96 bg-surfaceHighlight rounded-2xl animate-pulse border border-white/5 shadow-xl"></div>
+          </div>
+        ) : (
+          featuredImages.length > 0 && <Carousel images={featuredImages} />
+        )}
+      </section>
+
+      {/* --- SECTION 2: SEO / INTRO TEXT (Restored) --- */}
+      <section className="max-w-4xl mx-auto px-4 text-center mb-6 mt-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-textPrimary mb-3">
+          Discover the Best AI Art Prompts
+        </h1>
+        <p className="text-textSecondary text-sm md:text-base leading-relaxed">
+          Browse our extensive gallery of high-quality AI-generated images. 
+          Copy exact prompts for Midjourney, Stable Diffusion, and DALL-E to recreate 
+          stunning styles in Anime, Cyberpunk, 3D Render, and Photorealistic aesthetics.
+        </p>
+      </section>
+
+      {/* --- SECTION 3: STICKY HEADER (Search & Categories) --- */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-white/5 shadow-md transition-all">
         
         {/* Search Bar */}
@@ -136,7 +171,6 @@ const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 pb-3">
           <div className="flex flex-wrap gap-2">
             
-            {/* Render Visible Categories */}
             {visibleCategories.map((cat) => (
               <button
                 key={cat.name}
@@ -153,7 +187,7 @@ const Home: React.FC = () => {
               </button>
             ))}
 
-            {/* "Show More" Button - styled exactly like a tag */}
+            {/* "Show More" Button */}
             {dynamicCategories.length > 10 && (
               <button
                 onClick={handleShowMoreCategories}
@@ -166,22 +200,21 @@ const Home: React.FC = () => {
                 )}
               </button>
             )}
-
           </div>
         </div>
       </div>
 
-      {/* --- MAIN GRID --- */}
+      {/* --- SECTION 4: MAIN GRID (Masonry) --- */}
       <main className="max-w-7xl mx-auto px-4 mt-6 min-h-[60vh]">
         {loading ? (
-          // Skeletons
+          // Grid Skeletons (Matches Masonry Layout)
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
               <div key={i} className="aspect-[2/3] bg-surfaceHighlight rounded-xl animate-pulse" />
             ))}
           </div>
         ) : (
-          // Images: columns-1 (Mobile), columns-3 (Tablet), columns-4 (Desktop)
+          // 1 col mobile, 3 tablet, 4 desktop
           <div className="columns-1 md:columns-3 lg:columns-4 gap-4 space-y-4">
             {filteredImages.map((img) => (
               <div key={img.id} className="break-inside-avoid relative group mb-4">
@@ -194,10 +227,10 @@ const Home: React.FC = () => {
                     className="w-full h-auto transition-transform duration-500 group-hover:scale-105"
                   />
                   
-                  {/* HOVER OVERLAY - UPDATED: Transparent & Blurred */}
+                  {/* HOVER OVERLAY: Translucent + Text Visible */}
                   <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-4">
                     
-                    {/* Prompt Preview - Text Shadow added for readability over image */}
+                    {/* Prompt Preview */}
                     <p className="text-white text-sm line-clamp-4 mb-4 leading-relaxed font-medium drop-shadow-md">
                       "{img.prompt}"
                     </p>
