@@ -2,67 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- THEME VARIABLES --- */
+/* Default (Light Mode) */
+:root {
+  --color-background: #ffffff;
+  --color-surface: #f3f4f6;       /* Light Gray */
+  --color-surface-highlight: #e5e7eb;
+  --color-text-primary: #111827;  /* Almost Black */
+  --color-text-secondary: #6b7280;
+  --color-accent: #3b82f6;        /* Bright Blue */
+}
+
+/* Dark Mode Overrides */
+.dark {
+  --color-background: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-highlight: #2a2a2a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-accent: #3b82f6;
+}
+
+/* --- GLOBAL STYLES --- */
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Apply the variables to the body */
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Animations */
+.page-enter {
+  animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Custom Fonts */
 @font-face {
     font-family: "ChristmasCalling";
-    src: url("./assets/fonts/Christmas Calling-Personal Use.otf")
-        format("opentype");
+    src: url("./assets/fonts/Christmas Calling-Personal Use.otf") format("opentype");
     font-weight: normal;
     font-style: normal;
 }
-
 .font-christmas {
   font-family: 'ChristmasCalling', cursive;
-}
-
-:root {
-    color-scheme: dark light;
-}
-
-body {
-    margin: 0;
-    font-family: "Inter", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-/* --- Global Smooth Scroll --- */
-html {
-    scroll-behavior: smooth;
-}
-
-/* --- Custom Scrollbar --- */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-/* --- Tactile Buttons (Bounce Effect) --- */
-button:active {
-    transform: scale(0.96);
-}
-
-/* --- Page Transitions --- */
-.page-enter {
-    animation: fadeUp 0.5s ease-out forwards;
-}
-
-@keyframes fadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
