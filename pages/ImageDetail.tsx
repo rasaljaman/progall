@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import SEO from '../components/SEO'; // IMPORT SEO
+import SEO from '../components/SEO';
 import { supabaseService, supabase } from '../services/supabaseService';
 import { logUserEvent } from '../services/firebaseAnalytics';
 import { ImageItem } from '../types';
@@ -9,6 +9,15 @@ import { getAdminColor } from '../constants';
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
 import { useToast } from '../context/ToastContext';
+
+// --- CUSTOM ICONS ---
+const WhatsAppIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" /></svg>
+);
+
+const PinterestIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.399.165-1.487-.695-2.432-2.878-2.432-4.646 0-3.776 2.748-7.252 7.951-7.252 4.173 0 7.41 2.967 7.41 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z"/></svg>
+);
 
 const ImageDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -61,12 +70,8 @@ const ImageDetail: React.FC = () => {
         const rankedImages = allImages.map(img => {
           let score = 0;
           if (img.category === currentImg.category) score += 10;
-          const sharedTags = img.tags.filter(tag => currentImg.tags.includes(tag));
+          const sharedTags = img.tags?.filter(tag => currentImg.tags?.includes(tag)) || [];
           score += (sharedTags.length * 3);
-          const currentWords = currentImg.prompt.toLowerCase().split(/\s+/);
-          const imgWords = img.prompt.toLowerCase().split(/\s+/);
-          const sharedWords = imgWords.filter(w => currentWords.includes(w) && w.length > 3);
-          score += sharedWords.length;
           return { ...img, relevanceScore: score };
         });
 
@@ -86,23 +91,23 @@ const ImageDetail: React.FC = () => {
     fetchData();
   }, [id, navigate]);
 
+  // --- ACTIONS ---
+
   const handleCopy = () => {
     if (image) {
       navigator.clipboard.writeText(image.prompt);
-      showToast('Prompt copied successfully! 🎨');
+      showToast('Prompt copied! 🎨');
       logUserEvent('copy_prompt', { item_id: image.id, prompt_length: image.prompt.length });
-      supabaseService.trackEvent('COPY', { image_id: image.id });
     }
   };
   
   const handleGeminiRemix = () => {
     if (image) {
       logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
-      supabaseService.trackEvent('REMIX', { image_id: image.id, category: image.category });
       window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
         .then(() => showToast('Prompt copied! Paste it in Gemini.'))
-        .catch(() => showToast('Please copy prompt manually', 'error'));
+        .catch(() => showToast('Prompt copied!'));
     }
   };
 
@@ -118,35 +123,79 @@ const ImageDetail: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleShare = async () => {
-    if (!image) return;
-    logUserEvent('share', { method: navigator.share ? 'native' : 'clipboard', item_id: image.id });
+  // --- SMART SOCIAL HANDLERS ---
 
-    try {
-      if (navigator.share) {
+  // 1. WhatsApp: Copy Caption -> Download Image -> Share Image
+  const handleWhatsApp = async () => {
+    if (!image) return;
+    logUserEvent('share', { method: 'whatsapp', item_id: image.id });
+    
+    // Check if browser supports sharing files (Mobile)
+    if (navigator.share) {
+      try {
+        // STEP 1: Copy Caption to Clipboard (Workaround for WhatsApp)
+        const caption = `"${image.prompt.slice(0, 150)}..."\n\n🔗 Get it here: ${window.location.href}`;
+        await navigator.clipboard.writeText(caption);
+        showToast('Caption copied! Paste it in WhatsApp.', 'success');
+        
+        // STEP 2: Prepare Image
         const response = await fetch(image.url);
         const blob = await response.blob();
-        const file = new File([blob], 'art.webp', { type: blob.type });
+        const file = new File([blob], `progall-art.jpg`, { type: 'image/jpeg' });
 
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                title: 'ProGall Art',
-                text: `${image.prompt.slice(0, 100)}...`,
-                url: window.location.href,
-                files: [file]
-            });
-        } else {
+        // STEP 3: Share Image
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'ProGall Art',
+            text: caption // Some apps use this, WhatsApp ignores it
+          });
+          return;
+        }
+      } catch (err) {
+        console.log("File share failed, falling back to link");
+      }
+    }
+
+    // Fallback for Desktop (Text only)
+    const text = encodeURIComponent(`✨ AI Art from ProGall:\n\n"${image.prompt.substring(0, 100)}..."\n\n${window.location.href}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
+
+  // 2. Pinterest: Requires LIVE URL (Will fail on localhost)
+  const handlePinterest = () => {
+    if (!image) return;
+    logUserEvent('share', { method: 'pinterest', item_id: image.id });
+    
+    // Warn user if on localhost
+    if (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
+        showToast('Pinterest requires a live website (not localhost)', 'error');
+        return;
+    }
+
+    const description = encodeURIComponent(`AI Art Prompt: ${image.prompt.substring(0, 490)}... #AIArt`);
+    const media = encodeURIComponent(image.url);
+    const url = encodeURIComponent(window.location.href);
+    
+    const pinUrl = `https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${description}`;
+    window.open(pinUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // 3. Generic Share (Sends Link)
+  const handleShare = async () => {
+    if (!image) return;
+    if (navigator.share) {
+        try {
             await navigator.share({
                 title: 'ProGall Art',
                 text: image.prompt,
                 url: window.location.href,
             });
+        } catch (err) {
+            handleCopy();
         }
-      } else {
+    } else {
         handleCopy();
-      }
-    } catch (err) {
-      handleCopy();
     }
   };
   
@@ -154,9 +203,9 @@ const ImageDetail: React.FC = () => {
     try {
       await supabaseService.updateImage(updatedImage);
       setImage(updatedImage);
-      showToast('Image details updated successfully!');
+      showToast('Updated successfully!');
     } catch (err) {
-      showToast('Failed to save changes', 'error');
+      showToast('Failed to save', 'error');
     }
   };
 
@@ -173,7 +222,6 @@ const ImageDetail: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 pt-6 page-enter">
       
-      {/* --- DYNAMIC SEO TAGS --- */}
       <SEO 
         title={image.prompt.substring(0, 50)} 
         description={`Download high-quality ${image.category} AI art. Prompt: ${image.prompt.substring(0, 150)}...`}
@@ -192,15 +240,9 @@ const ImageDetail: React.FC = () => {
           
           <div className="space-y-4 relative">
              <img src={image.url} alt={image.prompt} className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
-             {isAdmin && image.created_by && (
-                <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-                  <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: getAdminColor(image.created_by) }}/>
-                  <span className="text-[10px] text-gray-300 font-mono">{image.created_by.slice(0, 6)}...</span>
-                </div>
-             )}
              {isAdmin && (
               <button onClick={() => setIsEditModalOpen(true)} className="w-full py-3 border border-dashed border-accent/30 text-accent rounded-xl hover:bg-surfaceHighlight">
-                <Edit2 size={18} className="inline mr-2"/> Edit Image Details
+                <Edit2 size={18} className="inline mr-2"/> Edit
               </button>
             )}
           </div>
@@ -213,20 +255,41 @@ const ImageDetail: React.FC = () => {
 
             <div className="bg-surface p-6 rounded-xl border border-surfaceHighlight group relative">
               <p className="text-textPrimary text-lg font-light leading-relaxed">{image.prompt}</p>
-              <button onClick={handleCopy} className="absolute top-4 right-4 p-2 bg-black/5 rounded hover:bg-accent hover:text-white opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity"><Copy size={16} className="text-textSecondary"/></button>
+              <button onClick={handleCopy} className="absolute top-4 right-4 p-2 bg-black/5 rounded hover:bg-accent hover:text-white transition-colors"><Copy size={16} className="text-textSecondary"/></button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button onClick={handleGeminiRemix} className="col-span-full py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-transform">
+            {/* --- ACTION GRID --- */}
+            <div className="grid grid-cols-2 gap-3">
+              
+              {/* 1. Remix */}
+              <button onClick={handleGeminiRemix} className="col-span-2 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-transform">
                 <Sparkles size={20}/> Remix on Gemini
               </button>
               
-              <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight"><Share2 size={18}/> Share</button>
-              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight"><Download size={18}/> Download</button>
+              {/* 2. Download */}
+              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
+                <Download size={18}/> Download
+              </button>
+
+              {/* 3. Native Share */}
+              <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
+                <Share2 size={18}/> Share Link
+              </button>
+
+              {/* 4. WhatsApp (COPY + SHARE) */}
+              <button onClick={handleWhatsApp} className="py-3 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/20 transition-colors font-semibold">
+                <WhatsAppIcon /> WhatsApp
+              </button>
+
+              {/* 5. Pinterest */}
+              <button onClick={handlePinterest} className="py-3 bg-[#E60023]/10 border border-[#E60023]/20 text-[#E60023] rounded-xl flex items-center justify-center gap-2 hover:bg-[#E60023]/20 transition-colors font-semibold">
+                <PinterestIcon /> Pin It
+              </button>
+
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {image.tags.map((tag, i) => (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {image.tags?.map((tag, i) => (
                 <span key={i} className="px-3 py-1 bg-surfaceHighlight rounded-lg text-sm text-textPrimary/70">#{tag}</span>
               ))}
             </div>
@@ -235,7 +298,7 @@ const ImageDetail: React.FC = () => {
 
         {relatedImages.length > 0 && (
           <div className="mt-20 border-t border-surfaceHighlight pt-10">
-            <h2 className="text-2xl font-bold text-textPrimary mb-8">Related to this style</h2>
+            <h2 className="text-2xl font-bold text-textPrimary mb-8">Related Styles</h2>
             <GalleryGrid images={relatedImages} />
           </div>
         )}
