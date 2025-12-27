@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import SEO from '../components/SEO'; // IMPORT SEO
 import { supabaseService, supabase } from '../services/supabaseService';
-// IMPORT ANALYTICS
 import { logUserEvent } from '../services/firebaseAnalytics';
 import { ImageItem } from '../types';
 import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react'; 
@@ -44,17 +43,14 @@ const ImageDetail: React.FC = () => {
 
       setImage(currentImg);
       
-      // --- TRACK: VIEW ITEM (TRENDING) ---
       logUserEvent('view_item', {
         item_id: currentImg.id,
         item_name: currentImg.prompt.substring(0, 50),
         item_category: currentImg.category
       });
-
-      // Existing Supabase tracking (Optional to keep)
       supabaseService.trackEvent('VIEW', { image_id: currentImg.id, category: currentImg.category });
 
-      // --- RELATED IMAGES LOGIC ---
+      // RELATED IMAGES
       const { data: allImages } = await supabase
         .from('images')
         .select('*')
@@ -94,46 +90,25 @@ const ImageDetail: React.FC = () => {
     if (image) {
       navigator.clipboard.writeText(image.prompt);
       showToast('Prompt copied successfully! 🎨');
-      
-      // --- TRACK: COPY ---
-      logUserEvent('copy_prompt', { 
-        item_id: image.id,
-        prompt_length: image.prompt.length 
-      });
+      logUserEvent('copy_prompt', { item_id: image.id, prompt_length: image.prompt.length });
       supabaseService.trackEvent('COPY', { image_id: image.id });
     }
   };
   
   const handleGeminiRemix = () => {
     if (image) {
-      // --- TRACK: REMIX ---
-      logUserEvent('remix_gemini', { 
-        item_id: image.id,
-        category: image.category 
-      });
+      logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
       supabaseService.trackEvent('REMIX', { image_id: image.id, category: image.category });
-      
-      const newTab = window.open('https://gemini.google.com/app', '_blank');
+      window.open('https://gemini.google.com/app', '_blank');
       navigator.clipboard.writeText(image.prompt)
-        .then(() => {
-           showToast('Prompt copied! Paste it in Gemini.');
-        })
-        .catch((err) => {
-           if(newTab) showToast('Please copy prompt manually', 'error');
-        });
+        .then(() => showToast('Prompt copied! Paste it in Gemini.'))
+        .catch(() => showToast('Please copy prompt manually', 'error'));
     }
   };
 
   const handleDownload = () => {
     if (!image) return;
-    
-    // --- TRACK: DOWNLOAD ---
-    logUserEvent('download_image', {
-      item_id: image.id,
-      category: image.category
-    });
-    
-    // Trigger download
+    logUserEvent('download_image', { item_id: image.id, category: image.category });
     const link = document.createElement('a');
     link.href = image.url;
     link.target = '_blank';
@@ -143,19 +118,12 @@ const ImageDetail: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // --- SMART SHARE FUNCTION ---
   const handleShare = async () => {
     if (!image) return;
-
-    // --- TRACK: SHARE START ---
-    logUserEvent('share', {
-      method: navigator.share ? 'native' : 'clipboard',
-      item_id: image.id
-    });
+    logUserEvent('share', { method: navigator.share ? 'native' : 'clipboard', item_id: image.id });
 
     try {
       if (navigator.share) {
-        // Fetch Image Blob for richer sharing
         const response = await fetch(image.url);
         const blob = await response.blob();
         const file = new File([blob], 'art.webp', { type: blob.type });
@@ -168,7 +136,6 @@ const ImageDetail: React.FC = () => {
                 files: [file]
             });
         } else {
-            // Fallback (Desktop/Unsupported File Share)
             await navigator.share({
                 title: 'ProGall Art',
                 text: image.prompt,
@@ -179,7 +146,6 @@ const ImageDetail: React.FC = () => {
         handleCopy();
       }
     } catch (err) {
-      // Fallback if user cancels or fetch fails
       handleCopy();
     }
   };
@@ -207,43 +173,31 @@ const ImageDetail: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 pt-6 page-enter">
       
-      <Helmet>
-        <title>{image.prompt.slice(0, 60)}... | ProGall</title>
-        <meta name="description" content={`Download this AI generated ${image.category} art.`} />
-        <meta property="og:title" content={`${image.category} AI Art | ProGall`} />
-        <meta property="og:image" content={image.thumbnail} />
-      </Helmet>
+      {/* --- DYNAMIC SEO TAGS --- */}
+      <SEO 
+        title={image.prompt.substring(0, 50)} 
+        description={`Download high-quality ${image.category} AI art. Prompt: ${image.prompt.substring(0, 150)}...`}
+        image={image.url}
+        url={`https://progall.tech/image/${image.id}`}
+        type="article"
+      />
 
       <div className="max-w-7xl mx-auto px-4">
         
-        <button 
-          onClick={() => navigate('/')} 
-          className="flex items-center gap-2 text-textSecondary hover:text-textPrimary mb-6 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span>Back to Gallery</span>
+        <button onClick={() => navigate('/')} className="flex items-center gap-2 text-textSecondary hover:text-textPrimary mb-6 transition-colors">
+          <ArrowLeft size={20} /><span>Back to Gallery</span>
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           <div className="space-y-4 relative">
              <img src={image.url} alt={image.prompt} className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
-             
              {isAdmin && image.created_by && (
-                <div 
-                  className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10"
-                  title="Admin Creator ID"
-                >
-                  <div 
-                    className="w-3 h-3 rounded-full border border-white shadow-sm" 
-                    style={{ backgroundColor: getAdminColor(image.created_by) }}
-                  />
-                  <span className="text-[10px] text-gray-300 font-mono">
-                    {image.created_by.slice(0, 6)}...
-                  </span>
+                <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                  <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: getAdminColor(image.created_by) }}/>
+                  <span className="text-[10px] text-gray-300 font-mono">{image.created_by.slice(0, 6)}...</span>
                 </div>
              )}
-
              {isAdmin && (
               <button onClick={() => setIsEditModalOpen(true)} className="w-full py-3 border border-dashed border-accent/30 text-accent rounded-xl hover:bg-surfaceHighlight">
                 <Edit2 size={18} className="inline mr-2"/> Edit Image Details
@@ -267,12 +221,8 @@ const ImageDetail: React.FC = () => {
                 <Sparkles size={20}/> Remix on Gemini
               </button>
               
-              <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
-                <Share2 size={18}/> Share
-              </button>
-              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
-                <Download size={18}/> Download
-              </button>
+              <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight"><Share2 size={18}/> Share</button>
+              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight"><Download size={18}/> Download</button>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -291,9 +241,7 @@ const ImageDetail: React.FC = () => {
         )}
 
         {isAdmin && image && (
-          <EditImageModal 
-            image={image} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveEdit} onDelete={handleDelete}
-          />
+          <EditImageModal image={image} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveEdit} onDelete={handleDelete}/>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import SEO from '../components/SEO'; // IMPORT SEO
 import Carousel from '../components/Carousel';
 import { supabaseService } from '../services/supabaseService';
 import { ImageItem } from '../types';
@@ -15,11 +16,11 @@ const Home: React.FC = () => {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   
-  // Category Logic (Show 10, then +10)
+  // Category Logic
   const [dynamicCategories, setDynamicCategories] = useState<{name: string, count: number}[]>([]);
   const [categoryLimit, setCategoryLimit] = useState(10); 
   
-  // Image Pagination Logic (Show 30, then +30)
+  // Image Pagination Logic
   const [imageLimit, setImageLimit] = useState(30);
 
   // UX State
@@ -32,7 +33,7 @@ const Home: React.FC = () => {
       try {
         const data = await supabaseService.getImages();
         
-        // Sort by Popularity Score (Downloads > Copies > Views)
+        // Sort by Popularity
         const sortedData = data.sort((a, b) => {
           const scoreA = ((a.downloads_count || 0) * 3) + ((a.copies_count || 0) * 2) + ((a.views_count || 0) * 1);
           const scoreB = ((b.downloads_count || 0) * 3) + ((b.copies_count || 0) * 2) + ((b.views_count || 0) * 1);
@@ -41,7 +42,7 @@ const Home: React.FC = () => {
 
         setImages(sortedData);
 
-        // Extract & Sort Categories
+        // Extract Categories
         if (data.length > 0) {
           const catCounts: Record<string, number> = {};
           data.forEach(img => {
@@ -72,52 +73,39 @@ const Home: React.FC = () => {
     return () => clearTimeout(timer);
   }, [inputValue]);
 
-  // --- 3. RESET PAGINATION ON FILTER CHANGE ---
+  // --- 3. RESET PAGINATION ---
   useEffect(() => {
-    setImageLimit(30); // Reset to first 30 whenever search or category changes
+    setImageLimit(30);
   }, [debouncedQuery, selectedCategory]);
 
-  // --- 4. FILTERING & SLICING ---
-  
-  // For Carousel (Top 5 Featured/Popular)
+  // --- 4. FILTERING ---
   const featuredImages = useMemo(() => {
     const featured = images.filter(img => img.is_featured === true);
     return featured.length > 0 ? featured : images.slice(0, 5);
   }, [images]);
 
-  // Filter Logic (Returns ALL matches)
   const allFilteredImages = useMemo(() => {
     let result = [...images];
-
     if (debouncedQuery) {
       const q = debouncedQuery.toLowerCase();
       result = result.filter(img => 
           img.prompt.toLowerCase().includes(q) || img.tags?.some(tag => tag.toLowerCase().includes(q))
       );
     }
-
     if (selectedCategory !== 'All') {
       result = result.filter(img => img.category === selectedCategory);
     }
-
     return result;
   }, [images, debouncedQuery, selectedCategory]);
 
-  // Slicing Logic (Returns only the visible batch)
   const visibleImages = allFilteredImages.slice(0, imageLimit);
-
-  // --- 5. CATEGORY HANDLERS ---
   const visibleCategories = dynamicCategories.slice(0, categoryLimit);
   
   const handleShowMoreCategories = () => {
-    if (categoryLimit >= dynamicCategories.length) {
-      setCategoryLimit(10); 
-    } else {
-      setCategoryLimit(prev => prev + 10);
-    }
+    if (categoryLimit >= dynamicCategories.length) setCategoryLimit(10); 
+    else setCategoryLimit(prev => prev + 10);
   };
 
-  // --- 6. ACTION HANDLERS ---
   const handleCopy = (e: React.MouseEvent, text: string, id: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -130,6 +118,12 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 bg-background text-textPrimary page-enter">
       
+      {/* --- SEO INJECTION --- */}
+      <SEO 
+        title="Home" 
+        description="The premium gallery for AI art prompts. Copy exact prompts for Midjourney, Stable Diffusion, and DALL-E."
+      />
+
       {/* --- SECTION 1: CAROUSEL --- */}
       <section className="mb-6">
         {loading ? (
@@ -155,8 +149,6 @@ const Home: React.FC = () => {
 
       {/* --- SECTION 3: STICKY HEADER --- */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-white/5 shadow-md transition-all">
-        
-        {/* Search Bar */}
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textSecondary" size={18} />
@@ -175,10 +167,8 @@ const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* Categories */}
         <div className="max-w-7xl mx-auto px-4 pb-3">
           <div className="flex flex-wrap gap-2">
-            
             {visibleCategories.map((cat) => (
               <button
                 key={cat.name}
@@ -194,8 +184,6 @@ const Home: React.FC = () => {
                 <span className="opacity-50 text-[10px] bg-black/20 px-1.5 rounded-full">{cat.count}</span>
               </button>
             ))}
-
-            {/* Category Show More Button */}
             {dynamicCategories.length > 10 && (
               <button
                 onClick={handleShowMoreCategories}
@@ -222,11 +210,9 @@ const Home: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Masonry Grid */}
             <div className="columns-1 md:columns-3 lg:columns-4 gap-4 space-y-4">
               {visibleImages.map((img) => (
                 <div key={img.id} className="break-inside-avoid relative group mb-4">
-                  
                   <Link to={`/image/${img.id}`} className="block relative overflow-hidden rounded-xl bg-surfaceHighlight">
                     <img 
                       src={img.url} 
@@ -234,27 +220,18 @@ const Home: React.FC = () => {
                       loading="lazy"
                       className="w-full h-auto transition-transform duration-500 group-hover:scale-105"
                     />
-                    
-                    {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-4">
-                      
-                      <p className="text-white text-sm line-clamp-4 mb-4 leading-relaxed font-medium drop-shadow-md">
-                        "{img.prompt}"
-                      </p>
-
+                      <p className="text-white text-sm line-clamp-4 mb-4 leading-relaxed font-medium drop-shadow-md">"{img.prompt}"</p>
                       <div className="flex items-center justify-between gap-3">
                          <button
                           onClick={(e) => handleCopy(e, img.prompt, img.id)}
                           className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${
-                              copiedId === img.id 
-                              ? 'bg-green-500 text-white' 
-                              : 'bg-white text-black hover:bg-gray-200'
+                              copiedId === img.id ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-gray-200'
                           }`}
                          >
                            {copiedId === img.id ? <Check size={16} /> : <Copy size={16} />}
                            {copiedId === img.id ? 'Copied' : 'Copy'}
                          </button>
-
                          {(img.downloads_count || img.copies_count) && (
                              <div className="text-xs text-white flex flex-col items-center px-1 drop-shadow-md">
                                  <Download size={14} />
@@ -267,8 +244,6 @@ const Home: React.FC = () => {
                 </div>
               ))}
             </div>
-
-            {/* --- SECTION 5: IMAGE "LOAD MORE" BUTTON --- */}
             {allFilteredImages.length > imageLimit && (
               <div className="flex justify-center mt-12 mb-10">
                 <button
@@ -279,12 +254,8 @@ const Home: React.FC = () => {
                 </button>
               </div>
             )}
-            
-            {/* Empty State */}
             {allFilteredImages.length === 0 && (
-              <div className="text-center py-20 text-textSecondary">
-                <p>No prompts found. Try a different search.</p>
-              </div>
+              <div className="text-center py-20 text-textSecondary"><p>No prompts found. Try a different search.</p></div>
             )}
           </>
         )}
