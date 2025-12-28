@@ -1,9 +1,8 @@
 import React from 'react';
-import Footer from '../components/Footer';
 
 const About: React.FC = () => {
   return (
-    <div className="min-h-screen bg-background text-textPrimary pt-8 pb-20">
+    <div className="min-h-screen bg-background text-textPrimary pt-8 pb-20 page-enter">
       
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto px-6 text-center mb-16">
@@ -20,7 +19,8 @@ const About: React.FC = () => {
         
         {/* Mission Card */}
         <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8 md:p-10 shadow-lg">
-          <h2 className="text-2xl font-bold mb-4 text-white">Our Mission</h2>
+          {/* FIX: Changed text-white to text-textPrimary */}
+          <h2 className="text-2xl font-bold mb-4 text-textPrimary">Our Mission</h2>
           <p className="text-textSecondary leading-relaxed">
             In the age of Generative AI, the "Prompt" is the new paintbrush. However, finding consistent, high-quality prompts is difficult. ProGall was built to solve this by creating a centralized, community-driven archive where creators can share their exact "recipes" for Midjourney, Stable Diffusion, and DALL-E.
           </p>

@@ -2,7 +2,7 @@ import React from 'react';
 
 const Privacy: React.FC = () => {
   return (
-    <div className="min-h-screen bg-background text-textPrimary pt-8 pb-20 px-6">
+    <div className="min-h-screen bg-background text-textPrimary pt-8 pb-20 px-6 page-enter">
       <div className="max-w-3xl mx-auto">
         
         <header className="mb-12">
@@ -18,7 +18,8 @@ const Privacy: React.FC = () => {
           
           {/* Section 1 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            <h2 className="text-xl font-bold text-white mb-4">1. Information We Collect</h2>
+            {/* FIX: Changed text-white to text-textPrimary */}
+            <h2 className="text-xl font-bold text-textPrimary mb-4">1. Information We Collect</h2>
             <ul className="list-disc pl-5 space-y-3 text-textSecondary text-sm">
               <li>
                 <strong>Usage Data:</strong> We collect anonymous data on how you interact with the site, such as pages visited, search terms used, and buttons clicked (via Google/Firebase Analytics).
@@ -34,7 +35,8 @@ const Privacy: React.FC = () => {
 
           {/* Section 2 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            <h2 className="text-xl font-bold text-white mb-4">2. How We Use Your Data</h2>
+            {/* FIX: Changed text-white to text-textPrimary */}
+            <h2 className="text-xl font-bold text-textPrimary mb-4">2. How We Use Your Data</h2>
             <p className="text-textSecondary text-sm leading-relaxed mb-4">
               We use the collected information to:
             </p>
@@ -47,7 +49,8 @@ const Privacy: React.FC = () => {
 
           {/* Section 3 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            <h2 className="text-xl font-bold text-white mb-4">3. Third-Party Services</h2>
+            {/* FIX: Changed text-white to text-textPrimary */}
+            <h2 className="text-xl font-bold text-textPrimary mb-4">3. Third-Party Services</h2>
             <p className="text-textSecondary text-sm leading-relaxed mb-4">
               We rely on trusted third-party providers to run ProGall. These partners may process data on our behalf:
             </p>
@@ -60,7 +63,8 @@ const Privacy: React.FC = () => {
 
           {/* Section 4 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            <h2 className="text-xl font-bold text-white mb-4">4. Your Rights</h2>
+            {/* FIX: Changed text-white to text-textPrimary */}
+            <h2 className="text-xl font-bold text-textPrimary mb-4">4. Your Rights</h2>
             <p className="text-textSecondary text-sm leading-relaxed">
               You have the right to request access to the personal data we hold about you (if any). You can also request the deletion of your account or data at any time by contacting us via our Contact page.
             </p>
