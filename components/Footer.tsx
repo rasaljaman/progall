@@ -14,7 +14,6 @@ const Footer: React.FC = () => {
           
           {/* Column 1: Brand & Mission */}
           <div className="md:col-span-1">
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h3 className="text-xl font-bold text-textPrimary mb-4">ProGall</h3>
             <p className="text-sm text-textSecondary leading-relaxed">
               Empowering creators with AI-driven inspiration. Your premier destination for high-quality prompts and visual storytelling assets.
@@ -23,18 +22,18 @@ const Footer: React.FC = () => {
 
           {/* Column 2: Navigation */}
           <div>
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h4 className="text-textPrimary font-semibold mb-4">Explore</h4>
             <ul className="space-y-2 text-sm text-textSecondary">
               <li><Link to="/" className="hover:text-accent transition-colors">Gallery</Link></li>
               <li><Link to="/about" className="hover:text-accent transition-colors">About Us</Link></li>
               <li><Link to="/contact" className="hover:text-accent transition-colors">Support</Link></li>
+              {/* Added FAQ Link Here */}
+              <li><Link to="/faq" className="hover:text-accent transition-colors">FAQ</Link></li>
             </ul>
           </div>
 
           {/* Column 3: Legal */}
           <div>
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h4 className="text-textPrimary font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm text-textSecondary">
               <li><Link to="/terms" className="hover:text-accent transition-colors">Terms of Service</Link></li>
@@ -44,7 +43,6 @@ const Footer: React.FC = () => {
 
           {/* Column 4: Socials */}
           <div>
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h4 className="text-textPrimary font-semibold mb-4">Connect</h4>
             <div className="flex gap-4">
               {/* Instagram Link */}
@@ -52,10 +50,10 @@ const Footer: React.FC = () => {
                 href="https://www.instagram.com/progall_?igsh=MXh0OHkwbnZsOTE4bg==" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="bg-surfaceHighlight rounded-full hover:bg-white transition-all"
+                className="bg-surfaceHighlight rounded-full p-2 hover:bg-white/10 transition-all"
                 aria-label="Instagram"
               >
-                <img src={instaIcon} alt="Instagram" width={30} height={30} />
+                <img src={instaIcon} alt="Instagram" width={24} height={24} />
               </a>
 
               {/* Threads Link */}
@@ -63,10 +61,10 @@ const Footer: React.FC = () => {
                 href="https://www.threads.net/@progall_" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="bg-surfaceHighlight rounded-full hover:bg-white transition-all"
+                className="bg-surfaceHighlight rounded-full p-2 hover:bg-white/10 transition-all"
                 aria-label="Threads"
               >
-                <img src={threadsIcon} alt="Threads" width={30} height={30} />
+                <img src={threadsIcon} alt="Threads" width={24} height={24} />
               </a>
             </div>
           </div>
@@ -74,8 +72,13 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Copyright */}
-        <div className="border-t border-surfaceHighlight pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
+        <div className="border-t border-surfaceHighlight pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-textSecondary opacity-60">
           <p>© {new Date().getFullYear()} ProGall. All rights reserved.</p>
+          <div className="flex items-center gap-1 mt-2 md:mt-0">
+             <span>Made with</span>
+             <Heart size={12} className="text-red-500 fill-red-500" /> 
+             <span>for creators</span>
+          </div>
         </div>
       </div>
     </footer>

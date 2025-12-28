@@ -2,18 +2,62 @@ import React from 'react';
 
 const Terms: React.FC = () => {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold text-primary mb-6">Terms of Use</h1>
-      <div className="prose prose-invert text-textSecondary">
-        <p className="mb-4">Welcome to ProGall. By accessing our website, you agree to these terms.</p>
+    <div className="min-h-screen bg-background text-textPrimary pt-8 pb-20 px-6">
+      <div className="max-w-3xl mx-auto">
         
-        <h3 className="text-xl text-primary font-semibold mt-6 mb-2">1. Use of Prompts</h3>
-        <p>The AI prompts displayed on this gallery are for educational and creative purposes. You are free to use them to generate your own images.</p>
+        <header className="mb-12">
+          <span className="text-accent text-xs font-bold tracking-wider uppercase">Legal</span>
+          <h1 className="text-4xl font-bold mt-2 mb-4">Terms of Service</h1>
+          <p className="text-textSecondary">
+            Please read these terms carefully before using ProGall. These rules help us maintain a respectful, inspiring space for AI artists everywhere.
+          </p>
+          <p className="text-xs text-textSecondary mt-4 opacity-50">Effective Date: December 28, 2025</p>
+        </header>
 
-        <h3 className="text-xl text-primary font-semibold mt-6 mb-2">2. User Conduct</h3>
-        <p>You agree not to misuse the service or attempt to access restricted areas of the site.</p>
-        
-        <p className="mt-8 text-sm text-gray-500">Last Updated: December 2025</p>
+        <div className="space-y-8">
+          
+          {/* Card 1 */}
+          <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
+            <h2 className="text-xl font-bold text-white mb-4">1. Acceptance of Terms</h2>
+            <p className="text-textSecondary text-sm leading-relaxed">
+              By accessing or using ProGall, you agree to follow these Terms. They create a legal agreement between you and ProGall. If you disagree with any term, you should stop using the service immediately.
+            </p>
+          </section>
+
+          {/* Card 2 */}
+          <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
+            <h2 className="text-xl font-bold text-white mb-4">2. Eligibility & Accounts</h2>
+            <p className="text-textSecondary text-sm leading-relaxed mb-4">
+              You must be at least 13 years old to use this service. When you use ProGall, you agree to provide accurate information and accept responsibility for any activity that occurs under your IP or account.
+            </p>
+          </section>
+
+          {/* Card 3 */}
+          <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
+            <h2 className="text-xl font-bold text-white mb-4">3. Community Conduct</h2>
+            <p className="text-textSecondary text-sm leading-relaxed mb-4">
+              ProGall is a collaborative gallery. We encourage remixing and sharing. However, you agree <strong>NOT</strong> to:
+            </p>
+            <ul className="list-disc pl-5 space-y-2 text-textSecondary text-sm">
+              <li>Upload content that is illegal, harmful, threatening, or sexually explicit.</li>
+              <li>Infringe on the copyright or trademark rights of others.</li>
+              <li>Use automated scripts (scraping) to collect information from our Service.</li>
+              <li>Attempt to disrupt the servers or networks connected to ProGall.</li>
+            </ul>
+          </section>
+
+          {/* Card 4 */}
+          <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
+            <h2 className="text-xl font-bold text-white mb-4">4. Intellectual Property</h2>
+            <p className="text-textSecondary text-sm leading-relaxed mb-4">
+              <strong>Your Content:</strong> You retain ownership of the AI-generated images you create. However, by uploading them to ProGall, you grant us a worldwide, non-exclusive license to display, reproduce, and distribute your content on this platform.
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed">
+              <strong>Our Content:</strong> The ProGall logo, design, code, and "look and feel" are owned by ProGall and protected by copyright laws.
+            </p>
+          </section>
+
+        </div>
       </div>
     </div>
   );
