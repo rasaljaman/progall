@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Home, Upload, LogOut, Grid, FileText, Shield, Mail, Sun, Moon } from 'lucide-react';
+import { Home, Grid, FileText, Shield, Mail, Sun, Moon, ChevronRight, BarChart3, Sparkles, LogOut, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3 } from 'lucide-react';
-import { Sparkles } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,16 +11,11 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onLogout }) => {
   const location = useLocation();
-  
-  // 1. THEME STATE
   const [isDark, setIsDark] = useState(true);
 
-  // 2. CHECK PREFERENCE ON LOAD
+  // Theme Logic
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    // Default to dark unless user explicitly chose light
     if (savedTheme === 'light') {
       setIsDark(false);
       document.documentElement.classList.remove('dark');
@@ -32,7 +25,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
     }
   }, []);
 
-  // 3. TOGGLE FUNCTION
   const toggleTheme = () => {
     if (isDark) {
       document.documentElement.classList.remove('dark');
@@ -45,131 +37,127 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
     }
   };
 
-  const isActive = (path: string) => location.pathname === path;
-  
+  // Helper for active links
   const linkClass = (path: string) => 
-    `flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
-      isActive(path)
-        ? 'bg-accent/10 text-accent font-medium'
-        : 'text-textSecondary hover:bg-surfaceHighlight hover:text-textPrimary'
+    `flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${
+      location.pathname === path
+        ? 'bg-accent/10 text-accent font-semibold'
+        : 'text-textPrimary hover:bg-surfaceHighlight'
     }`;
 
   return (
     <>
-      {/* Overlay */}
+      {/* 1. Backdrop (Click to close) */}
       <div
-        className={`fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`fixed inset-0 z-[60] bg-black/20 backdrop-blur-[2px] transition-opacity duration-300 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
 
-      {/* Sidebar Panel (Right Side) */}
+      {/* 2. Floating "Island" Menu */}
       <aside
-        className={`fixed top-0 right-0 z-[70] h-full w-72 bg-surface shadow-2xl transform transition-transform duration-300 ease-in-out border-l border-surfaceHighlight ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`
+          fixed z-[70] 
+          top-20 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[400px]
+          bg-surface/95 backdrop-blur-2xl border border-surfaceHighlight shadow-2xl rounded-3xl
+          overflow-hidden flex flex-col
+          transform transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1)
+        `}
+        style={{
+          // Slide Down + Fade Effect
+          opacity: isOpen ? 1 : 0,
+          transform: isOpen 
+            ? 'translate(-50%, 0) scale(1)' // Centered & Visible (Desktop logic handled by class)
+            : 'translate(-50%, -20px) scale(0.95)', // Hidden state
+          // Fix for mobile positioning override
+          ...(window.innerWidth < 768 ? {
+             transform: isOpen ? 'translateY(0)' : 'translateY(-20px)',
+             left: '16px', right: '16px', width: 'auto'
+          } : {})
+        }}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-surfaceHighlight">
-            <span className="text-lg font-bold text-textPrimary">Menu</span>
+        {/* Header inside the card */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surfaceHighlight/50">
+          <span className="text-sm font-bold text-textSecondary uppercase tracking-widest">Menu</span>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-full bg-surfaceHighlight hover:bg-black/10 text-textPrimary transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto max-h-[70vh] p-4 space-y-6">
+          
+          {/* Theme Toggle Segment */}
+          <div className="bg-surfaceHighlight/40 p-1 rounded-2xl flex relative">
             <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-surfaceHighlight text-textSecondary hover:text-textPrimary transition-colors"
+              onClick={() => !isDark && toggleTheme()}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                !isDark ? 'text-textSecondary' : 'bg-surface shadow-sm text-textPrimary'
+              }`}
             >
-              <X size={20} />
+              <Moon size={16} /> Dark
+            </button>
+            <button
+              onClick={() => isDark && toggleTheme()}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isDark ? 'text-textSecondary' : 'bg-surface shadow-sm text-textPrimary'
+              }`}
+            >
+              <Sun size={16} /> Light
             </button>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-            
-            {/* --- THEME TOGGLE BUTTON --- */}
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-surfaceHighlight/50 border border-surfaceHighlight text-textPrimary hover:bg-surfaceHighlight transition-all mb-6"
-            >
-              <div className="flex items-center gap-3">
-                {isDark ? <Moon size={20} className="text-accent" /> : <Sun size={20} className="text-accentAmber" />}
-                <span className="font-medium">{isDark ? 'Dark Mode' : 'Light Mode'}</span>
-              </div>
-              {/* Visual Switch */}
-              <div className={`w-10 h-5 rounded-full relative transition-colors ${isDark ? 'bg-accent/30' : 'bg-gray-300'}`}>
-                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${isDark ? 'left-6 bg-accent' : 'left-1'}`} />
-              </div>
-            </button>
-            
-            {/* 1. Main Navigation */}
+          {/* Navigation Links */}
+          <div className="space-y-1">
             <Link to="/" onClick={onClose} className={linkClass('/')}>
-              <Home size={20} />
-              <span>Home</span>
+              <div className="flex items-center gap-3"><Home size={20} /> Home</div>
             </Link>
 
-            {/* 2. Admin Navigation */}
             {isAuthenticated && (
               <>
-                <div className="my-2 border-t border-surfaceHighlight/50 mx-2"></div>
-                <p className="px-4 text-xs font-semibold text-accent uppercase tracking-wider mb-1 mt-4">Admin Panel</p>
-                
                 <Link to="/admin/dashboard" onClick={onClose} className={linkClass('/admin/dashboard')}>
-                  <Grid size={20} />
-                  <span>Dashboard</span>
+                  <div className="flex items-center gap-3"><Grid size={20} /> Dashboard</div>
                 </Link>
-                <Link to="/admin/dashboard" onClick={onClose} className={linkClass('/admin/upload')}>
-                  <Upload size={20} />
-                  <span>Upload New</span>
+                <Link to="/admin/generator" onClick={onClose} className={linkClass('/admin/generator')}>
+                  <div className="flex items-center gap-3"><Sparkles size={20} className="text-amber-500" /> AI Auto-Creator</div>
                 </Link>
-                
-                <Link to="/admin/analytics" onClick={onClose} className="flex items-center gap-3 px-4 py-3 text-[#f2e8cf] hover:bg-[#a7c957]/20 rounded-lg transition-colors">
-                  <BarChart3 size={20} className="text-[#b88b2e]" />
-                  <span className="font-bold">Analytics</span>
+                <Link to="/admin/analytics" onClick={onClose} className={linkClass('/admin/analytics')}>
+                  <div className="flex items-center gap-3"><BarChart3 size={20} /> Analytics</div>
                 </Link>
-                
-                <Link  to="/admin/generator"  onClick={onClose} className="flex items-center gap-3 px-4 py-3 text-[#f2e8cf] hover:bg-[#a7c957]/20 rounded-lg transition-colors">
-                  <Sparkles size={20} className="text-[#b88b2e]" />
-                  <span className="font-bold">AI Auto-Creator</span>
-                </Link>
-                
               </>
             )}
-
-            {/* 3. Legal & Help Section */}
-            <div className="my-4 border-t border-surfaceHighlight/50 mx-2"></div>
-            <p className="px-4 text-xs font-semibold text-textSecondary uppercase tracking-wider mb-2">Legal & Help</p>
-
-            <Link to="/terms" onClick={onClose} className={linkClass('/terms')}>
-              <FileText size={20} />
-              <span>Terms of Use</span>
-            </Link>
-
-            <Link to="/privacy" onClick={onClose} className={linkClass('/privacy')}>
-              <Shield size={20} />
-              <span>Privacy Policy</span>
-            </Link>
-
-            <Link to="/contact" onClick={onClose} className={linkClass('/contact')}>
-              <Mail size={20} />
-              <span>Contact Us</span>
-            </Link>
-
           </div>
 
-          {/* Footer / Logout */}
+          {/* Legal / Help */}
+          <div className="space-y-1 pt-2 border-t border-surfaceHighlight/50">
+             <Link to="/terms" onClick={onClose} className={linkClass('/terms')}>
+                <div className="flex items-center gap-3"><FileText size={18} /> Terms</div>
+                <ChevronRight size={16} className="opacity-30" />
+              </Link>
+              <Link to="/privacy" onClick={onClose} className={linkClass('/privacy')}>
+                <div className="flex items-center gap-3"><Shield size={18} /> Privacy</div>
+                <ChevronRight size={16} className="opacity-30" />
+              </Link>
+              <Link to="/contact" onClick={onClose} className={linkClass('/contact')}>
+                <div className="flex items-center gap-3"><Mail size={18} /> Contact</div>
+                <ChevronRight size={16} className="opacity-30" />
+              </Link>
+          </div>
+
+          {/* Logout */}
           {isAuthenticated && (
-            <div className="p-4 border-t border-surfaceHighlight">
-              <button
-                onClick={() => {
-                  onLogout();
-                  onClose();
-                }}
-                className="flex items-center gap-4 px-4 py-3 w-full rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
-              >
-                <LogOut size={20} />
-                <span className="font-medium">Logout</span>
-              </button>
-            </div>
+            <button
+              onClick={() => { onLogout(); onClose(); }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/5 text-red-500 font-semibold hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut size={18} /> Log Out
+            </button>
           )}
+
         </div>
       </aside>
     </>

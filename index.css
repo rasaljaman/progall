@@ -2,54 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- THEME VARIABLES --- */
-/* Default (Light Mode) */
+/* --- iOS THEME VARIABLES --- */
 :root {
-  --color-background: #ffffff;
-  --color-surface: #f3f4f6;       /* Light Gray */
-  --color-surface-highlight: #e5e7eb;
-  --color-text-primary: #111827;  /* Almost Black */
-  --color-text-secondary: #6b7280;
-  --color-accent: #3b82f6;        /* Bright Blue */
+  /* Light Mode (Default) */
+  /* #F2F2F7 - System Gray 6 (Base Background) */
+  --background: 242 242 247; 
+  /* #FFFFFF - Pure White (Cards/Modals) */
+  --surface: 255 255 255;    
+  /* #E5E5EA - System Gray 5 (Borders/Inputs) */
+  --surface-highlight: 229 229 234; 
+  
+  --text-primary: 0 0 0;
+  --text-secondary: 60 60 67; /* #3C3C43 - Label Color */
+  
+  --accent: 0 122 255;       /* #007AFF - System Blue */
 }
 
 /* Dark Mode Overrides */
 .dark {
-  --color-background: #121212;
-  --color-surface: #1e1e1e;
-  --color-surface-highlight: #2a2a2a;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #a0a0a0;
-  --color-accent: #3b82f6;
+  /* #000000 - Pure Black (OLED Friendly) */
+  --background: 0 0 0;        
+  /* #1C1C1E - System Gray 6 (Cards) */
+  --surface: 28 28 30;        
+  /* #2C2C2E - System Gray 5 (Inputs) */
+  --surface-highlight: 44 44 46; 
+  
+  --text-primary: 255 255 255;
+  --text-secondary: 235 235 245; /* #EBEBF5 */
+  
+  --accent: 10 132 255;       /* #0A84FF - Dark Mode Blue */
 }
 
 /* --- GLOBAL STYLES --- */
 body {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  /* The "Apple Font Stack" - uses San Francisco on Mac/iOS, Segoe UI on Windows */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Apply the variables to the body */
-  background-color: var(--color-background);
-  color: var(--color-text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
+  background-color: rgb(var(--background));
+  color: rgb(var(--text-primary));
+  
+  /* Smooth transitions for theme switching */
+  transition: background-color 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.4s ease;
 }
 
-/* Animations */
+/* iOS Slide-Up Animation */
 .page-enter {
-  animation: fadeIn 0.3s ease-in-out;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom Fonts */
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Keep your custom font just in case */
 @font-face {
     font-family: "ChristmasCalling";
     src: url("./assets/fonts/Christmas Calling-Personal Use.otf") format("opentype");
-    font-weight: normal;
-    font-style: normal;
 }
 .font-christmas {
   font-family: 'ChristmasCalling', cursive;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import SEO from '../components/SEO'; // IMPORT SEO
+import SEO from '../components/SEO';
 import Carousel from '../components/Carousel';
 import { supabaseService } from '../services/supabaseService';
 import { ImageItem } from '../types';
@@ -116,7 +116,8 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-background text-textPrimary page-enter">
+    // FIX: Added 'pt-28 md:pt-32' here to create space for the floating navbar
+    <div className="min-h-screen pb-20 pt-28 md:pt-32 bg-background text-textPrimary page-enter">
       
       {/* --- SEO INJECTION --- */}
       <SEO 
