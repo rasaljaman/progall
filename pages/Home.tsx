@@ -5,6 +5,7 @@ import { supabaseService } from '../services/supabaseService';
 import { ImageItem } from '../types';
 import { Search, X, Copy, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AdCard from '../components/AdCard'; // <--- IMPORT AD CARD
 
 const Home: React.FC = () => {
   // --- STATE ---
@@ -116,7 +117,6 @@ const Home: React.FC = () => {
   };
 
   return (
-    // FIX: Added 'pt-28 md:pt-32' here to create space for the floating navbar
     <div className="min-h-screen pb-20 pt-28 md:pt-32 bg-background text-textPrimary page-enter">
       
       {/* --- SEO INJECTION --- */}
@@ -212,37 +212,47 @@ const Home: React.FC = () => {
         ) : (
           <>
             <div className="columns-1 md:columns-3 lg:columns-4 gap-4 space-y-4">
-              {visibleImages.map((img) => (
-                <div key={img.id} className="break-inside-avoid relative group mb-4">
-                  <Link to={`/image/${img.id}`} className="block relative overflow-hidden rounded-xl bg-surfaceHighlight">
-                    <img 
-                      src={img.url} 
-                      alt={img.prompt} 
-                      loading="lazy"
-                      className="w-full h-auto transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-4">
-                      <p className="text-white text-sm line-clamp-4 mb-4 leading-relaxed font-medium drop-shadow-md">"{img.prompt}"</p>
-                      <div className="flex items-center justify-between gap-3">
-                         <button
-                          onClick={(e) => handleCopy(e, img.prompt, img.id)}
-                          className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${
-                              copiedId === img.id ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-gray-200'
-                          }`}
-                         >
-                           {copiedId === img.id ? <Check size={16} /> : <Copy size={16} />}
-                           {copiedId === img.id ? 'Copied' : 'Copy'}
-                         </button>
-                         {(img.downloads_count || img.copies_count) && (
-                             <div className="text-xs text-white flex flex-col items-center px-1 drop-shadow-md">
-                                 <Download size={14} />
-                                 <span>{img.downloads_count || 0}</span>
-                             </div>
-                         )}
+              {visibleImages.map((img, index) => (
+                <React.Fragment key={img.id}>
+                  
+                  {/* Image Card */}
+                  <div className="break-inside-avoid relative group mb-4">
+                    <Link to={`/image/${img.id}`} className="block relative overflow-hidden rounded-xl bg-surfaceHighlight">
+                      <img 
+                        src={img.url} 
+                        alt={img.prompt} 
+                        loading="lazy"
+                        className="w-full h-auto transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-4">
+                        <p className="text-white text-sm line-clamp-4 mb-4 leading-relaxed font-medium drop-shadow-md">"{img.prompt}"</p>
+                        <div className="flex items-center justify-between gap-3">
+                           <button
+                            onClick={(e) => handleCopy(e, img.prompt, img.id)}
+                            className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${
+                                copiedId === img.id ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-gray-200'
+                            }`}
+                           >
+                             {copiedId === img.id ? <Check size={16} /> : <Copy size={16} />}
+                             {copiedId === img.id ? 'Copied' : 'Copy'}
+                           </button>
+                           {(img.downloads_count || img.copies_count) && (
+                               <div className="text-xs text-white flex flex-col items-center px-1 drop-shadow-md">
+                                   <Download size={14} />
+                                   <span>{img.downloads_count || 0}</span>
+                               </div>
+                           )}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                </div>
+                    </Link>
+                  </div>
+
+                  {/* --- AD INJECTION: Insert AdCard after every 7th image --- */}
+                  {(index + 1) % 7 === 0 && (
+                    <AdCard className="mb-4" />
+                  )}
+
+                </React.Fragment>
               ))}
             </div>
             {allFilteredImages.length > imageLimit && (
