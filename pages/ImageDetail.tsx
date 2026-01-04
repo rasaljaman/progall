@@ -8,7 +8,6 @@ import { ArrowLeft, Copy, Download, Edit2, Sparkles, Share2 } from 'lucide-react
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
 import { useToast } from '../context/ToastContext';
-// Removed AdCard import
 
 // --- CUSTOM ICONS ---
 const WhatsAppIcon = () => (
@@ -30,6 +29,7 @@ const ImageDetail: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { showToast } = useToast();
 
+  // FIX: Force scroll to top on load
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
@@ -51,12 +51,7 @@ const ImageDetail: React.FC = () => {
       }
 
       setImage(currentImg);
-      
-      logUserEvent('view_item', {
-        item_id: currentImg.id,
-        item_name: currentImg.prompt.substring(0, 50),
-        item_category: currentImg.category
-      });
+      logUserEvent('view_item', { item_id: currentImg.id, item_name: currentImg.prompt.substring(0, 50), item_category: currentImg.category });
       supabaseService.trackEvent('VIEW', { image_id: currentImg.id, category: currentImg.category });
 
       // RELATED IMAGES
@@ -74,119 +69,38 @@ const ImageDetail: React.FC = () => {
           score += (sharedTags.length * 3);
           return { ...img, relevanceScore: score };
         });
-
-        const sorted = rankedImages
-          .sort((a, b) => b.relevanceScore - a.relevanceScore)
-          .slice(0, 8);
-
-        setRelatedImages(sorted);
+        setRelatedImages(rankedImages.sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, 8));
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       setIsAdmin(!!session);
-
       setLoading(false);
     };
 
     fetchData();
   }, [id, navigate]);
 
-  // --- ACTIONS ---
-
-  const handleCopy = () => {
-    if (image) {
-      navigator.clipboard.writeText(image.prompt);
-      showToast('Prompt copied! 🎨');
-      logUserEvent('copy_prompt', { item_id: image.id, prompt_length: image.prompt.length });
-    }
-  };
+  // ACTIONS
+  const handleCopy = () => { if (image) { navigator.clipboard.writeText(image.prompt); showToast('Prompt copied! 🎨'); logUserEvent('copy_prompt', { item_id: image.id, prompt_length: image.prompt.length }); }};
+  const handleGeminiRemix = () => { if (image) { logUserEvent('remix_gemini', { item_id: image.id, category: image.category }); window.open('https://gemini.google.com/app', '_blank'); navigator.clipboard.writeText(image.prompt).then(() => showToast('Prompt copied! Paste it in Gemini.')).catch(() => showToast('Prompt copied!')); }};
+  const handleDownload = () => { if (!image) return; logUserEvent('download_image', { item_id: image.id, category: image.category }); const link = document.createElement('a'); link.href = image.url; link.target = '_blank'; link.download = `ProGall-${image.id}.jpg`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
   
-  const handleGeminiRemix = () => {
-    if (image) {
-      logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
-      window.open('https://gemini.google.com/app', '_blank');
-      navigator.clipboard.writeText(image.prompt)
-        .then(() => showToast('Prompt copied! Paste it in Gemini.'))
-        .catch(() => showToast('Prompt copied!'));
-    }
-  };
-
-  const handleDownload = () => {
-    if (!image) return;
-    logUserEvent('download_image', { item_id: image.id, category: image.category });
-    const link = document.createElement('a');
-    link.href = image.url;
-    link.target = '_blank';
-    link.download = `ProGall-${image.id}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // --- SMART SOCIAL HANDLERS ---
-  const handleWhatsApp = async () => {
-    if (!image) return;
-    logUserEvent('share', { method: 'whatsapp', item_id: image.id });
-    if (navigator.share) {
-      try {
-        const caption = `"${image.prompt.slice(0, 150)}..."\n\n🔗 Get it here: ${window.location.href}`;
-        await navigator.clipboard.writeText(caption);
-        showToast('Caption copied! Paste it in WhatsApp.', 'success');
-        const response = await fetch(image.url);
-        const blob = await response.blob();
-        const file = new File([blob], `progall-art.jpg`, { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'ProGall Art', text: caption });
-          return;
-        }
-      } catch (err) { console.log("File share failed"); }
-    }
-    const text = encodeURIComponent(`✨ AI Art from ProGall:\n\n"${image.prompt.substring(0, 100)}..."\n\n${window.location.href}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
-  };
-
-  const handlePinterest = () => {
-    if (!image) return;
-    logUserEvent('share', { method: 'pinterest', item_id: image.id });
-    if (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
-        showToast('Pinterest requires a live website (not localhost)', 'error');
-        return;
-    }
-    const description = encodeURIComponent(`AI Art Prompt: ${image.prompt.substring(0, 490)}... #AIArt`);
-    const media = encodeURIComponent(image.url);
-    const url = encodeURIComponent(window.location.href);
-    const pinUrl = `https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${description}`;
-    window.open(pinUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleShare = async () => {
-    if (!image) return;
-    if (navigator.share) {
-        try { await navigator.share({ title: 'ProGall Art', text: image.prompt, url: window.location.href }); } catch (err) { handleCopy(); }
-    } else { handleCopy(); }
-  };
+  // SOCIALS
+  const handleWhatsApp = async () => { if (!image) return; logUserEvent('share', { method: 'whatsapp', item_id: image.id }); if (navigator.share) { try { const caption = `"${image.prompt.slice(0, 150)}..."\n\n🔗 Get it here: ${window.location.href}`; await navigator.clipboard.writeText(caption); showToast('Caption copied! Paste it in WhatsApp.', 'success'); const response = await fetch(image.url); const blob = await response.blob(); const file = new File([blob], `progall-art.jpg`, { type: 'image/jpeg' }); if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'ProGall Art', text: caption }); return; } } catch (err) { console.log("File share failed"); } } const text = encodeURIComponent(`✨ AI Art from ProGall:\n\n"${image.prompt.substring(0, 100)}..."\n\n${window.location.href}`); window.open(`https://wa.me/?text=${text}`, '_blank'); };
+  const handlePinterest = () => { if (!image) return; logUserEvent('share', { method: 'pinterest', item_id: image.id }); if (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) { showToast('Pinterest requires a live website', 'error'); return; } const description = encodeURIComponent(`AI Art Prompt: ${image.prompt.substring(0, 490)}... #AIArt`); const media = encodeURIComponent(image.url); const url = encodeURIComponent(window.location.href); window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${description}`, '_blank', 'noopener,noreferrer'); };
+  const handleShare = async () => { if (!image) return; if (navigator.share) { try { await navigator.share({ title: 'ProGall Art', text: image.prompt, url: window.location.href }); } catch (err) { handleCopy(); } } else { handleCopy(); } };
   
-  const handleSaveEdit = async (updatedImage: ImageItem) => {
-    try { await supabaseService.updateImage(updatedImage); setImage(updatedImage); showToast('Updated successfully!'); } catch (err) { showToast('Failed to save', 'error'); }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('Delete this image permanently?')) { await supabaseService.deleteImage(id); navigate('/'); }
-  };
+  const handleSaveEdit = async (updatedImage: ImageItem) => { try { await supabaseService.updateImage(updatedImage); setImage(updatedImage); showToast('Updated successfully!'); } catch (err) { showToast('Failed to save', 'error'); } };
+  const handleDelete = async (id: string) => { if (confirm('Delete this image permanently?')) { await supabaseService.deleteImage(id); navigate('/'); } };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-accent"></div></div>;
   if (!image) return null;
 
   return (
-    <div className="min-h-screen pb-20 pt-6 page-enter">
+    // FIX: Added 'pt-32 md:pt-36' padding to clear navbar
+    <div className="min-h-screen pb-20 pt-32 md:pt-36 page-enter">
       
-      <SEO 
-        title={image.prompt.substring(0, 50)} 
-        description={`Download high-quality ${image.category} AI art. Prompt: ${image.prompt.substring(0, 150)}...`}
-        image={image.url}
-        url={`https://progall.tech/image/${image.id}`}
-        type="article"
-      />
+      <SEO title={image.prompt.substring(0, 50)} description={`Download high-quality ${image.category} AI art.`} image={image.url} url={`https://progall.tech/image/${image.id}`} type="article" />
 
       <div className="max-w-7xl mx-auto px-4">
         
@@ -196,12 +110,8 @@ const ImageDetail: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* LEFT COLUMN: IMAGE */}
           <div className="space-y-4 relative">
              <img src={image.url} alt={image.prompt} className="w-full rounded-2xl border border-surfaceHighlight shadow-2xl" />
-             
-             {/* [REMOVED AD CARD FROM HERE] */}
-
              {isAdmin && (
               <button onClick={() => setIsEditModalOpen(true)} className="w-full py-3 border border-dashed border-accent/30 text-accent rounded-xl hover:bg-surfaceHighlight">
                 <Edit2 size={18} className="inline mr-2"/> Edit
@@ -209,7 +119,6 @@ const ImageDetail: React.FC = () => {
             )}
           </div>
 
-          {/* RIGHT COLUMN: DETAILS */}
           <div className="space-y-6">
             <div>
               <span className="text-accent text-sm font-bold uppercase">{image.category}</span>
@@ -221,23 +130,12 @@ const ImageDetail: React.FC = () => {
               <button onClick={handleCopy} className="absolute top-4 right-4 p-2 bg-black/5 rounded hover:bg-accent hover:text-white transition-colors"><Copy size={16} className="text-textSecondary"/></button>
             </div>
 
-            {/* ACTIONS */}
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={handleGeminiRemix} className="col-span-2 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-transform">
-                <Sparkles size={20}/> Remix on Gemini
-              </button>
-              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
-                <Download size={18}/> Download
-              </button>
-              <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight">
-                <Share2 size={18}/> Share Link
-              </button>
-              <button onClick={handleWhatsApp} className="py-3 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/20 transition-colors font-semibold">
-                <WhatsAppIcon /> WhatsApp
-              </button>
-              <button onClick={handlePinterest} className="py-3 bg-[#E60023]/10 border border-[#E60023]/20 text-[#E60023] rounded-xl flex items-center justify-center gap-2 hover:bg-[#E60023]/20 transition-colors font-semibold">
-                <PinterestIcon /> Pin It
-              </button>
+              <button onClick={handleGeminiRemix} className="col-span-2 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl text-white font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-transform"> <Sparkles size={20}/> Remix on Gemini </button>
+              <button onClick={handleDownload} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight"> <Download size={18}/> Download </button>
+              <button onClick={handleShare} className="py-3 bg-surface border border-surfaceHighlight rounded-xl text-textPrimary flex items-center justify-center gap-2 hover:bg-surfaceHighlight"> <Share2 size={18}/> Share Link </button>
+              <button onClick={handleWhatsApp} className="py-3 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/20 transition-colors font-semibold"> <WhatsAppIcon /> WhatsApp </button>
+              <button onClick={handlePinterest} className="py-3 bg-[#E60023]/10 border border-[#E60023]/20 text-[#E60023] rounded-xl flex items-center justify-center gap-2 hover:bg-[#E60023]/20 transition-colors font-semibold"> <PinterestIcon /> Pin It </button>
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">

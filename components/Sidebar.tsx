@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
       {/* 1. Backdrop (Click to close) */}
       <div
         className={`fixed inset-0 z-[60] bg-black/20 backdrop-blur-[2px] transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
@@ -63,14 +63,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isAuthenticated, onL
           bg-surface/95 backdrop-blur-2xl border border-surfaceHighlight shadow-2xl rounded-3xl
           overflow-hidden flex flex-col
           transform transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1)
+          ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'} /* <--- FIX HERE */
         `}
         style={{
           // Slide Down + Fade Effect
           opacity: isOpen ? 1 : 0,
           transform: isOpen 
-            ? 'translate(-50%, 0) scale(1)' // Centered & Visible (Desktop logic handled by class)
-            : 'translate(-50%, -20px) scale(0.95)', // Hidden state
-          // Fix for mobile positioning override
+            ? 'translate(-50%, 0) scale(1)' 
+            : 'translate(-50%, -20px) scale(0.95)',
+          
+          // Mobile Positioning Fix
           ...(window.innerWidth < 768 ? {
              transform: isOpen ? 'translateY(0)' : 'translateY(-20px)',
              left: '16px', right: '16px', width: 'auto'

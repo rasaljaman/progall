@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 const Terms: React.FC = () => {
+  // FIX: Force scroll to top on load
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background text-textPrimary pt-8 pb-20 px-6 page-enter">
+    // FIX: Added 'pt-32' padding
+    <div className="min-h-screen bg-background text-textPrimary pt-32 pb-20 px-6 page-enter">
       <div className="max-w-3xl mx-auto">
         
         <header className="mb-12">
@@ -18,7 +24,6 @@ const Terms: React.FC = () => {
           
           {/* Card 1 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h2 className="text-xl font-bold text-textPrimary mb-4">1. Acceptance of Terms</h2>
             <p className="text-textSecondary text-sm leading-relaxed">
               By accessing or using ProGall, you agree to follow these Terms. They create a legal agreement between you and ProGall. If you disagree with any term, you should stop using the service immediately.
@@ -27,7 +32,6 @@ const Terms: React.FC = () => {
 
           {/* Card 2 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h2 className="text-xl font-bold text-textPrimary mb-4">2. Eligibility & Accounts</h2>
             <p className="text-textSecondary text-sm leading-relaxed mb-4">
               You must be at least 13 years old to use this service. When you use ProGall, you agree to provide accurate information and accept responsibility for any activity that occurs under your IP or account.
@@ -36,7 +40,6 @@ const Terms: React.FC = () => {
 
           {/* Card 3 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h2 className="text-xl font-bold text-textPrimary mb-4">3. Community Conduct</h2>
             <p className="text-textSecondary text-sm leading-relaxed mb-4">
               ProGall is a collaborative gallery. We encourage remixing and sharing. However, you agree <strong>NOT</strong> to:
@@ -51,7 +54,6 @@ const Terms: React.FC = () => {
 
           {/* Card 4 */}
           <section className="bg-surface border border-surfaceHighlight rounded-2xl p-8">
-            {/* FIX: Changed text-white to text-textPrimary */}
             <h2 className="text-xl font-bold text-textPrimary mb-4">4. Intellectual Property</h2>
             <p className="text-textSecondary text-sm leading-relaxed mb-4">
               <strong>Your Content:</strong> You retain ownership of the AI-generated images you create. However, by uploading them to ProGall, you grant us a worldwide, non-exclusive license to display, reproduce, and distribute your content on this platform.
