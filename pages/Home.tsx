@@ -3,9 +3,9 @@ import SEO from '../components/SEO';
 import Carousel from '../components/Carousel';
 import { supabaseService } from '../services/supabaseService';
 import { ImageItem } from '../types';
-import { Search, X, Copy, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Search, X, Copy, Check, ChevronDown, ChevronUp, Download, Sparkles, BookOpen, Zap } from 'lucide-react'; // Added icons
 import { Link } from 'react-router-dom';
-import AdCard from '../components/AdCard'; // <--- IMPORT AD CARD
+import AdCard from '../components/AdCard';
 
 const Home: React.FC = () => {
   // --- STATE ---
@@ -136,15 +136,15 @@ const Home: React.FC = () => {
         )}
       </section>
 
-      {/* --- SECTION 2: SEO TEXT --- */}
+      {/* --- SECTION 2: INTRO TEXT (Expanded for AdSense) --- */}
       <section className="max-w-4xl mx-auto px-4 text-center mb-6 mt-6">
         <h1 className="text-2xl md:text-3xl font-bold text-textPrimary mb-3">
-          Discover the Best AI Art Prompts
+          Free AI Art Prompts & Gallery
         </h1>
-        <p className="text-textSecondary text-sm md:text-base leading-relaxed">
-          Browse our extensive gallery of high-quality AI-generated images. 
-          Copy exact prompts for Midjourney, Stable Diffusion, and DALL-E to recreate 
-          stunning styles.
+        <p className="text-textSecondary text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+          ProGall is your ultimate resource for <strong>Midjourney, Stable Diffusion, and DALL-E prompts</strong>. 
+          Stop struggling with "blank canvas syndrome". Browse our curated collection of high-quality AI art, 
+          copy the exact prompt parameters, and generate stunning visuals for your projects in seconds.
         </p>
       </section>
 
@@ -155,7 +155,7 @@ const Home: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textSecondary" size={18} />
             <input
               type="text"
-              placeholder="Search prompts..."
+              placeholder="Search prompts (e.g., 'cyberpunk', 'portrait', '8k')..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               className="w-full bg-surfaceHighlight border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-accent focus:border-accent outline-none"
@@ -217,7 +217,7 @@ const Home: React.FC = () => {
                   
                   {/* Image Card */}
                   <div className="break-inside-avoid relative group mb-4">
-                    <Link to={`/image/${img.id}`} className="block relative overflow-hidden rounded-xl bg-surfaceHighlight">
+                    <Link to={`/image/${img.id}`} className="block relative overflow-hidden rounded-xl bg-surfaceHighlight border border-surfaceHighlight/50 hover:border-accent/50 transition-colors">
                       <img 
                         src={img.url} 
                         alt={img.prompt} 
@@ -247,7 +247,7 @@ const Home: React.FC = () => {
                     </Link>
                   </div>
 
-                  {/* --- AD INJECTION: Insert AdCard after every 7th image --- */}
+                  {/* AD INJECTION: Insert AdCard after every 7th image */}
                   {(index + 1) % 7 === 0 && (
                     <AdCard className="mb-4" />
                   )}
@@ -255,6 +255,7 @@ const Home: React.FC = () => {
                 </React.Fragment>
               ))}
             </div>
+            
             {allFilteredImages.length > imageLimit && (
               <div className="flex justify-center mt-12 mb-10">
                 <button
@@ -265,12 +266,51 @@ const Home: React.FC = () => {
                 </button>
               </div>
             )}
+            
             {allFilteredImages.length === 0 && (
               <div className="text-center py-20 text-textSecondary"><p>No prompts found. Try a different search.</p></div>
             )}
           </>
         )}
       </main>
+
+      {/* --- SECTION 5: CONTENT FOOTER (NEW: Helps Fix AdSense "Low Content" Error) --- */}
+      <section className="bg-surface border-t border-surfaceHighlight mt-16 py-16 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
+          
+          <div className="space-y-4">
+            <div className="bg-accent/10 w-12 h-12 rounded-xl flex items-center justify-center text-accent mb-4">
+              <Sparkles size={24} />
+            </div>
+            <h3 className="text-xl font-bold text-textPrimary">Master Prompt Engineering</h3>
+            <p className="text-textSecondary text-sm leading-relaxed">
+              Learn how to control lighting, camera angles, and art styles. Our gallery includes exact parameters like <code>--ar 16:9</code>, <code>--v 6.0</code>, and negative prompts to help you become an AI art pro.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-purple-500/10 w-12 h-12 rounded-xl flex items-center justify-center text-purple-500 mb-4">
+              <BookOpen size={24} />
+            </div>
+            <h3 className="text-xl font-bold text-textPrimary">Copy, Paste, Create</h3>
+            <p className="text-textSecondary text-sm leading-relaxed">
+              No need to guess. Every image on ProGall comes with the full prompt used to generate it. Simply click "Copy" and paste it into Discord, Bing Image Creator, or Stable Diffusion.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-orange-500/10 w-12 h-12 rounded-xl flex items-center justify-center text-orange-500 mb-4">
+              <Zap size={24} />
+            </div>
+            <h3 className="text-xl font-bold text-textPrimary">Daily Inspiration</h3>
+            <p className="text-textSecondary text-sm leading-relaxed">
+              We update our database daily with trending styles including Cyberpunk, Anime, Photorealism, and 3D Rendering. Bookmark us to stay ahead of the generative AI curve.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
     </div>
   );
 };
