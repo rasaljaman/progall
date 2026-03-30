@@ -86,6 +86,8 @@ const ImageDetail: React.FC = () => {
   const [tabFetchCache, setTabFetchCache] = useState<Partial<Record<TabId, ImageItem[]>>>({});
 
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [showFullPrompt,    setShowFullPrompt]    = useState(false);
+  const [showAllTags,       setShowAllTags]       = useState(false);
 
   // Scroll to top when image changes
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
@@ -335,6 +337,31 @@ const ImageDetail: React.FC = () => {
                 <Edit2 size={16} /> Edit Image
               </button>
             )}
+
+            {/* ── Quick Info card (fills blank space on desktop) ── */}
+            <div className="hidden lg:block rounded-xl border border-border/50 bg-surfaceHighlight p-4 space-y-3">
+              <p className="text-xs font-bold text-textSecondary uppercase tracking-wide">Prompt Info</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-surface rounded-lg py-2.5 px-1 border border-border/40">
+                  <p className="text-lg font-bold text-textPrimary">{image.prompt.split(' ').length}</p>
+                  <p className="text-[10px] text-textSecondary mt-0.5">Words</p>
+                </div>
+                <div className="bg-surface rounded-lg py-2.5 px-1 border border-border/40">
+                  <p className="text-lg font-bold text-accent truncate px-1">{image.category}</p>
+                  <p className="text-[10px] text-textSecondary mt-0.5">Category</p>
+                </div>
+                <div className="bg-surface rounded-lg py-2.5 px-1 border border-border/40">
+                  <p className="text-lg font-bold text-textPrimary">{image.tags?.length ?? 0}</p>
+                  <p className="text-[10px] text-textSecondary mt-0.5">Tags</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 pt-1">
+                <span className="text-base">💡</span>
+                <p className="text-[11px] text-textSecondary leading-relaxed">
+                  Copy the prompt, open your AI tool, paste it, and attach a reference image if needed for accurate faces or styles.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Info panel */}
@@ -347,9 +374,23 @@ const ImageDetail: React.FC = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-textPrimary leading-tight">Prompt Details</h1>
             </div>
 
-            {/* Prompt box */}
+            {/* Prompt box with show more/less */}
             <div className="relative bg-surfaceHighlight rounded-xl border border-border/50 p-5">
-              <p className="text-textPrimary text-base font-light leading-relaxed pr-8">{image.prompt}</p>
+              <p className={`text-textPrimary text-base font-light leading-relaxed pr-8 transition-all ${
+                showFullPrompt ? '' : 'line-clamp-3'
+              }`}>
+                {image.prompt}
+              </p>
+              {/* Show more / less toggle */}
+              <button
+                onClick={() => setShowFullPrompt(v => !v)}
+                className="mt-2 flex items-center gap-1 text-xs font-semibold text-accent hover:opacity-75 transition-opacity"
+              >
+                {showFullPrompt
+                  ? <><ChevronUp size={13} /> Show less</>
+                  : <><ChevronDown size={13} /> Show full prompt</>
+                }
+              </button>
               <button
                 onClick={handleCopy}
                 className="absolute top-4 right-4 p-2 rounded-lg bg-surface hover:bg-accent hover:text-white text-textSecondary transition-all"
@@ -390,14 +431,27 @@ const ImageDetail: React.FC = () => {
               </button>
             </div>
 
-            {/* Tags */}
+            {/* Tags with show more/less */}
             {image.tags?.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {image.tags.map((tag, i) => (
-                  <span key={i} className="px-2.5 py-1 bg-surfaceHighlight rounded-full text-xs text-textSecondary border border-border/50">
-                    #{tag}
-                  </span>
-                ))}
+              <div className="space-y-2 pt-1">
+                <div className="flex flex-wrap gap-1.5">
+                  {(showAllTags ? image.tags : image.tags.slice(0, 5)).map((tag, i) => (
+                    <span key={i} className="px-2.5 py-1 bg-surfaceHighlight rounded-full text-xs text-textSecondary border border-border/50">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+                {image.tags.length > 5 && (
+                  <button
+                    onClick={() => setShowAllTags(v => !v)}
+                    className="flex items-center gap-1 text-xs font-semibold text-accent hover:opacity-75 transition-opacity"
+                  >
+                    {showAllTags
+                      ? <><ChevronUp size={13} /> Show less</>
+                      : <><ChevronDown size={13} /> +{image.tags.length - 5} more tags</>
+                    }
+                  </button>
+                )}
               </div>
             )}
 
