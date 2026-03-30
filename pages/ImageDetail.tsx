@@ -155,10 +155,51 @@ const ImageDetail: React.FC = () => {
   const handleGeminiRemix = () => {
     if (!image) return;
     logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
-    // Prompt is copied automatically — user just opens Gemini and pastes
+
+    // Always copy prompt first so user can paste it in Gemini
     navigator.clipboard.writeText(image.prompt)
-      .then(() => showToast('✅ Prompt copied! Opening Gemini — just paste it there.'))
-      .catch(() => showToast('Opening Gemini...'));
+      .then(() => showToast('✅ Prompt copied! Paste it in Gemini.'))
+      .catch(() => {});
+
+    const ua = navigator.userAgent;
+    const isAndroid = /android/i.test(ua);
+    const isFirefox = /firefox|fxios/i.test(ua);
+
+    if (isAndroid && !isFirefox) {
+      // LAUNCHER intent — launches the Gemini app exactly like tapping its icon.
+      // Works in Chrome, Kiwi, Edge, Brave (all Chromium-based).
+      // S.browser_fallback_url opens the website if the app is not installed.
+      const intentUrl =
+        'intent:#Intent;' +
+        'action=android.intent.action.MAIN;' +
+        'category=android.intent.category.LAUNCHER;' +
+        'package=com.google.android.apps.bard;' +
+        'S.browser_fallback_url=https%3A%2F%2Fgemini.google.com%2Fapp;' +
+        'end';
+
+      // Navigate via hidden anchor to avoid React Router interception
+      const a = document.createElement('a');
+      a.href = intentUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Fallback: if page is still visible after 2.5s, app didn't open—open web
+      const fallbackTimer = setTimeout(() => {
+        if (!document.hidden) {
+          window.open('https://gemini.google.com/app', '_blank');
+        }
+      }, 2500);
+
+      // Cancel fallback if user left the page (app opened successfully)
+      const cancelFallback = () => {
+        if (document.hidden) clearTimeout(fallbackTimer);
+      };
+      document.addEventListener('visibilitychange', cancelFallback, { once: true });
+    } else {
+      // iOS / Desktop / Firefox — open Gemini website
+      window.open('https://gemini.google.com/app', '_blank');
+    }
   };
 
   const handleDownload = () => {
@@ -291,15 +332,12 @@ const ImageDetail: React.FC = () => {
 
             {/* Action buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <a
-                href="https://gemini.google.com/app"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
                 onClick={handleGeminiRemix}
                 className="col-span-2 py-3.5 bg-gradient-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-accent hover:opacity-90 transition-all hover:shadow-glow active:scale-[0.98]"
               >
                 <Sparkles size={18} /> Remix on Gemini
-              </a>
+              </button>
               <button onClick={handleDownload} className="py-3 bg-surfaceHighlight border border-border rounded-xl text-textPrimary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-border transition-colors">
                 <Download size={16} /> Download
               </button>
