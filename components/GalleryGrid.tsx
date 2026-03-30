@@ -23,7 +23,7 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({
   // ── Loading skeleton ──
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
           <ImageCardSkeleton key={i} />
         ))}
@@ -44,7 +44,7 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({
   return (
     <div>
       {/* Same row-first grid as Home page */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {images.map(img => (
           <ImageCard key={img.id} img={img} />
         ))}

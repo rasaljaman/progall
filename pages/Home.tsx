@@ -178,7 +178,7 @@ const Home: React.FC = () => {
       <main id="gallery-section" className="max-w-7xl mx-auto px-4 mt-6 min-h-[60vh]">
         {loading ? (
           /* Initial full-page skeleton — same grid as the real grid */
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
               <ImageCardSkeleton key={i} />
             ))}
@@ -186,7 +186,7 @@ const Home: React.FC = () => {
         ) : (
           <>
             {/* Real grid — 2→3→4 columns, row-first */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {visibleImages.map((img, index) => (
                 <React.Fragment key={img.id}>
                   <ImageCard img={img} copiedId={copiedId} onCopy={handleCopy} />
