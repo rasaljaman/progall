@@ -8,6 +8,7 @@ interface ImageCardProps {
   img: ImageItem;
   copiedId?: string | null;
   onCopy?: (e: React.MouseEvent, text: string, id: string) => void;
+  index?: number;
 }
 
 /**
@@ -19,7 +20,7 @@ interface ImageCardProps {
  * - Hover overlay with Copy Prompt button
  * - Category badge top-left
  */
-const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0 }) => {
   const [loaded, setLoaded] = useState(false);
   const [localCopied, setLocalCopied] = useState(false);
 
@@ -39,7 +40,10 @@ const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy }) => {
   };
 
   return (
-    <div className="relative group rounded-2xl overflow-hidden border border-border/40 bg-surface hover:border-accent/40 transition-all duration-300 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5">
+    <div
+      className="animate-fade-up relative group rounded-2xl overflow-hidden border border-border/40 bg-surface hover:border-accent/40 transition-all duration-300 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5"
+      style={{ '--card-delay': `${Math.min(index, 11) * 60}ms` } as React.CSSProperties}
+    >
 
       {/* Shimmer until loaded */}
       {!loaded && (

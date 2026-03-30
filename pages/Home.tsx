@@ -189,7 +189,7 @@ const Home: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {visibleImages.map((img, index) => (
                 <React.Fragment key={img.id}>
-                  <ImageCard img={img} copiedId={copiedId} onCopy={handleCopy} />
+                  <ImageCard img={img} copiedId={copiedId} onCopy={handleCopy} index={index} />
 
                   {/* Ad injection after every 11th image */}
                   {(index + 1) % 12 === 0 && (

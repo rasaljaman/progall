@@ -45,8 +45,8 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({
     <div>
       {/* Same row-first grid as Home page */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {images.map(img => (
-          <ImageCard key={img.id} img={img} />
+        {images.map((img, idx) => (
+          <ImageCard key={img.id} img={img} index={idx} />
         ))}
       </div>
 

@@ -253,7 +253,7 @@ const ImageDetail: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
 
           {/* Image */}
-          <div className="space-y-4">
+          <div className="animate-slide-left space-y-4" style={{ '--card-delay': '100ms' } as React.CSSProperties}>
             <div className="rounded-2xl overflow-hidden border border-border/50 shadow-xl shadow-black/10 bg-surfaceHighlight">
               <img src={image.url} alt={image.prompt} className="w-full h-auto" />
             </div>
@@ -268,7 +268,7 @@ const ImageDetail: React.FC = () => {
           </div>
 
           {/* Info panel */}
-          <div className="space-y-5">
+          <div className="animate-slide-right space-y-5" style={{ '--card-delay': '200ms' } as React.CSSProperties}>
 
             <div>
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-accent/10 text-accent mb-2">
@@ -327,7 +327,7 @@ const ImageDetail: React.FC = () => {
         {/* ═══════════════════════════════════════════════════════
             TABBED MORE IMAGES SECTION
         ════════════════════════════════════════════════════════ */}
-        <div className="border-t border-border/40 pt-10">
+        <div className="animate-fade-up border-t border-border/40 pt-10" style={{ '--card-delay': '300ms' } as React.CSSProperties}>
 
           {/* Section header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
