@@ -1,121 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import Masonry from 'react-masonry-css';
+import React from 'react';
 import { ImageItem } from '../types';
 import ImageCard from './ImageCard';
-import AdCard from './AdCard'; // Import the AdCard
-import './masonry.css'; 
 import ImageCardSkeleton from './ImageCardSkeleton';
-import { ChevronDown } from 'lucide-react';
-import ScrollReveal from './ScrollReveal';
-import { supabase } from '../services/supabaseService'; // Import Supabase for auth check
+import { ChevronDown, Search } from 'lucide-react';
 
 interface GalleryGridProps {
   images: ImageItem[];
   loading?: boolean;
+  showLoadMore?: boolean;
+  onLoadMore?: () => void;
 }
 
-const GalleryGrid: React.FC<GalleryGridProps> = ({ images, loading }) => {
-  const [visibleCount, setVisibleCount] = useState(20);
-  const [isAdmin, setIsAdmin] = useState(false);
+const SKELETON_COUNT = 8;
 
-  // 1. Check if user is Admin (Logged in)
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAdmin(!!session); // true if logged in, false if visitor
-    };
-    checkUser();
-  }, []);
+const GalleryGrid: React.FC<GalleryGridProps> = ({
+  images,
+  loading = false,
+  showLoadMore = false,
+  onLoadMore,
+}) => {
 
-  const showMore = () => {
-    setVisibleCount(prev => prev + 20);
-  };
-
-  const breakpointColumnsObj = {
-    default: 4,
-    1100: 3,
-    700: 2,
-    500: 1
-  };
-  
-  // Loading State
+  // ── Loading skeleton ──
   if (loading) {
     return (
-      <div className="px-4 pb-10">
-        <Masonry
-          breakpointCols={breakpointColumnsObj}
-          className="my-masonry-grid"
-          columnClassName="my-masonry-grid_column"
-        >
-          {[...Array(12)].map((_, index) => (
-            <ImageCardSkeleton key={index} />
-          ))}
-        </Masonry>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+          <ImageCardSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
-  // Empty State
+  // ── Empty state ──
   if (images.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-        <p>No images found.</p>
+      <div className="flex flex-col items-center justify-center py-20 text-textSecondary gap-3">
+        <Search size={36} className="opacity-20" />
+        <p className="text-sm font-medium">No images found</p>
       </div>
     );
   }
 
-  const visibleImages = images.slice(0, visibleCount);
-
-  // 2. Logic to interleave Ads with Images
-  const renderItems = () => {
-    const items: React.ReactNode[] = [];
-
-    visibleImages.forEach((image, index) => {
-      // Push the Image
-      items.push(
-        <ScrollReveal key={image.id} className="mb-4 break-inside-avoid" delay={(index % 4) * 50}> 
-          <ImageCard image={image} />
-        </ScrollReveal>
-      );
-
-      // Insert Ad after every 5th image (5, 10, 15...)
-      // CONDITION: Only if NOT Admin and not the very last item
-      if (!isAdmin && (index + 1) % 5 === 0 && index !== visibleImages.length - 1) {
-        items.push(
-          <ScrollReveal key={`ad-${index}`} className="mb-4 break-inside-avoid" delay={100}>
-             {/* AdCard container with fixed height matching your specific ad unit if needed */}
-             <div className="w-full">
-               <AdCard />
-             </div>
-          </ScrollReveal>
-        );
-      }
-    });
-
-    return items;
-  };
-
   return (
-    <div className="px-4 pb-20">
-      <Masonry
-        breakpointCols={breakpointColumnsObj}
-        className="my-masonry-grid"
-        columnClassName="my-masonry-grid_column"
-      >
-        {renderItems()}
-      </Masonry>
+    <div>
+      {/* Same row-first grid as Home page */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        {images.map(img => (
+          <ImageCard key={img.id} img={img} />
+        ))}
+      </div>
 
-      {visibleCount < images.length && (
-        <div className="mt-12 flex justify-center w-full">
-          <ScrollReveal>
-            <button 
-                onClick={showMore}
-                className="group flex items-center gap-2 px-8 py-3 bg-surface border border-surfaceHighlight rounded-full text-textPrimary font-medium hover:border-accent hover:text-accent transition-all shadow-neumorphic active:scale-95"
-            >
-                Show More
-                <ChevronDown size={18} className="group-hover:translate-y-1 transition-transform" />
-            </button>
-          </ScrollReveal>
+      {/* Optional Load More */}
+      {showLoadMore && onLoadMore && (
+        <div className="flex justify-center mt-10">
+          <button
+            onClick={onLoadMore}
+            className="group flex items-center gap-2 px-8 py-3 rounded-full bg-surfaceHighlight border border-border text-textPrimary text-sm font-semibold hover:shadow-md transition-all"
+          >
+            Load More
+            <ChevronDown size={16} className="group-hover:translate-y-0.5 transition-transform" />
+          </button>
         </div>
       )}
     </div>

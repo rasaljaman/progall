@@ -2,66 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- iOS THEME VARIABLES --- */
+/* ============================================
+   PROGALL — Design System
+   Theme: Zinc-950 Dark / White Light
+   Accent: Teal → Indigo Gradient
+   ============================================ */
+
+/* --- THEME TOKENS --- */
 :root {
-  /* Light Mode (Default) */
-  /* #F2F2F7 - System Gray 6 (Base Background) */
-  --background: 242 242 247; 
-  /* #FFFFFF - Pure White (Cards/Modals) */
-  --surface: 255 255 255;    
-  /* #E5E5EA - System Gray 5 (Borders/Inputs) */
-  --surface-highlight: 229 229 234; 
-  
-  --text-primary: 0 0 0;
-  --text-secondary: 60 60 67; /* #3C3C43 - Label Color */
-  
-  --accent: 0 122 255;       /* #007AFF - System Blue */
+  /* Light Mode */
+  --background: 255 255 255;
+  --surface: 250 250 250;
+  --surface-highlight: 244 244 245;
+  --text-primary: 9 9 11;
+  --text-secondary: 113 113 122;
+  --accent: 20 184 166;       /* teal-500 */
+  --accent-end: 99 102 241;   /* indigo-500 */
+  --border: 228 228 231;
 }
 
-/* Dark Mode Overrides */
 .dark {
-  /* #000000 - Pure Black (OLED Friendly) */
-  --background: 0 0 0;        
-  /* #1C1C1E - System Gray 6 (Cards) */
-  --surface: 28 28 30;        
-  /* #2C2C2E - System Gray 5 (Inputs) */
-  --surface-highlight: 44 44 46; 
-  
-  --text-primary: 255 255 255;
-  --text-secondary: 235 235 245; /* #EBEBF5 */
-  
-  --accent: 10 132 255;       /* #0A84FF - Dark Mode Blue */
+  /* Dark Mode — Zinc-950 */
+  --background: 9 9 11;
+  --surface: 24 24 27;
+  --surface-highlight: 39 39 42;
+  --text-primary: 250 250 250;
+  --text-secondary: 161 161 170;
+  --accent: 45 212 191;       /* teal-400 */
+  --accent-end: 129 140 248;  /* indigo-400 */
+  --border: 63 63 70;
 }
 
 /* --- GLOBAL STYLES --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  /* The "Apple Font Stack" - uses San Francisco on Mac/iOS, Segoe UI on Windows */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
   background-color: rgb(var(--background));
   color: rgb(var(--text-primary));
-  
-  /* Smooth transitions for theme switching */
-  transition: background-color 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.4s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* iOS Slide-Up Animation */
+/* --- ACCENT GRADIENT UTILITY --- */
+.text-gradient {
+  background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-end)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-gradient-accent {
+  background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-end)));
+}
+
+/* --- HERO MARQUEE --- */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  animation: marquee 30s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* --- SHIMMER SKELETON --- */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--surface-highlight)) 25%,
+    rgb(var(--surface) / 0.8)     50%,
+    rgb(var(--surface-highlight)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* --- HERO MESH GRADIENT --- */
+.hero-mesh {
+  background-color: rgb(var(--background));
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -20%, rgb(var(--accent) / 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 110%, rgb(var(--accent-end) / 0.1) 0%, transparent 60%);
+}
+
+/* --- PAGE ENTER ANIMATION --- */
 .page-enter {
-  animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes slideUpFade {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Keep your custom font just in case */
+/* --- SCROLLBAR HIDE UTILITY --- */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* --- CHRISTMAS FONT --- */
 @font-face {
-    font-family: "ChristmasCalling";
-    src: url("./assets/fonts/Christmas Calling-Personal Use.otf") format("opentype");
+  font-family: "ChristmasCalling";
+  src: url("./assets/fonts/Christmas Calling-Personal Use.otf") format("opentype");
 }
 .font-christmas {
   font-family: 'ChristmasCalling', cursive;

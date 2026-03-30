@@ -1,154 +1,100 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ImageItem } from '../types';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreVertical, Copy, Sparkles, Download, Share2 } from 'lucide-react';
-import { useToast } from '../context/ToastContext';
+import { Copy, Check, Download } from 'lucide-react';
+import { ImageItem } from '../types';
 import { supabaseService } from '../services/supabaseService';
 
 interface ImageCardProps {
-  image: ImageItem;
+  img: ImageItem;
+  copiedId?: string | null;
+  onCopy?: (e: React.MouseEvent, text: string, id: string) => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { showToast } = useToast();
+/**
+ * Shared image card used in both the Home gallery grid
+ * and the Related Images section on the detail page.
+ *
+ * - aspect-[4/3] for uniform row-first grid
+ * - Shimmer skeleton until image loads
+ * - Hover overlay with Copy Prompt button
+ * - Category badge top-left
+ */
+const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [localCopied, setLocalCopied] = useState(false);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const isCopied = copiedId ? copiedId === img.id : localCopied;
 
-  const handleAction = async (action: string, e: React.MouseEvent) => {
-    e.preventDefault(); 
-    setShowMenu(false);
-
-    // --- COPY ---
-    if (action === 'copy') {
-      navigator.clipboard.writeText(image.prompt);
-      showToast('Prompt copied to clipboard! ✨'); 
-      supabaseService.trackEvent('COPY', { image_id: image.id, prompt_snip: image.prompt.slice(0, 20) });
-    }
-
-    // --- REMIX ---
-    if (action === 'remix') {
-       supabaseService.trackEvent('REMIX', { image_id: image.id });
-       const newTab = window.open('https://gemini.google.com/app', '_blank');
-       navigator.clipboard.writeText(image.prompt);
-       
-       if(!newTab) {
-         showToast('Popup blocked. Prompt copied anyway!', 'error');
-       } else {
-         showToast('Opening Gemini... Prompt copied!');
-       }
-    }
-
-    // --- SHARE (SMART IMAGE SHARING) ---
-    if (action === 'share') {
-      const shareUrl = window.location.origin + '/#/image/' + image.id;
-      
-      try {
-        if (navigator.share) {
-          // 1. Fetch the image as a blob
-          const response = await fetch(image.url);
-          const blob = await response.blob();
-          const file = new File([blob], 'art.webp', { type: blob.type });
-
-          // 2. Check if device supports file sharing
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: 'ProGall Art',
-              text: `${image.prompt.slice(0, 100)}...`, // Some apps prefer short text
-              url: shareUrl,
-              files: [file]
-            });
-          } else {
-            // Fallback: Share Text + Link only
-            await navigator.share({
-              title: 'ProGall Art',
-              text: image.prompt,
-              url: shareUrl,
-            });
-          }
-        } else {
-          // Fallback: Copy Link
-          navigator.clipboard.writeText(shareUrl);
-          showToast('Link copied to clipboard!');
-        }
-      } catch (error) {
-        console.error("Share failed:", error);
-        // Fallback if sharing was cancelled or failed
-        navigator.clipboard.writeText(shareUrl);
-        showToast('Link copied to clipboard!');
-      }
-    }
-
-    // --- DOWNLOAD ---
-    if (action === 'download') {
-      window.open(image.url, '_blank');
-      supabaseService.trackEvent('DOWNLOAD', { image_id: image.id });
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onCopy) {
+      onCopy(e, img.prompt, img.id);
+    } else {
+      navigator.clipboard.writeText(img.prompt);
+      supabaseService.trackEvent('COPY_PROMPT', { image_id: img.id });
+      setLocalCopied(true);
+      setTimeout(() => setLocalCopied(false), 2000);
     }
   };
 
   return (
-    <div className="relative group h-full">
-      <Link 
-        to={`/image/${image.id}`} 
-        className="block relative overflow-hidden rounded-xl bg-surfaceHighlight shadow-card hover:shadow-2xl transition-all duration-300"
-      >
-        {!isLoaded && (
-          <div className="absolute inset-0 z-0 bg-surfaceHighlight animate-pulse flex items-center justify-center" />
-        )}
+    <div className="relative group rounded-2xl overflow-hidden border border-border/40 bg-surface hover:border-accent/40 transition-all duration-300 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5">
 
-        <img
-          src={image.thumbnail || image.url}
-          alt={image.prompt}
-          loading="lazy"
-          onLoad={() => setIsLoaded(true)}
-          className={`w-full h-auto object-cover transform transition-all duration-700 ease-in-out relative z-10
-            ${isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm'}
-          `}
-        />
+      {/* Shimmer until loaded */}
+      {!loaded && (
+        <div className="absolute inset-0 skeleton-shimmer" />
+      )}
 
-        <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <Link to={`/image/${img.id}`} className="block">
+        {/* Fixed aspect ratio box */}
+        <div className="aspect-[4/3] overflow-hidden bg-surfaceHighlight">
+          <img
+            src={img.thumbnail || img.url}
+            alt={img.prompt}
+            loading="lazy"
+            onLoad={() => setLoaded(true)}
+            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
+              loaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        </div>
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex flex-col justify-end p-3.5">
+          <p className="text-white text-xs line-clamp-3 mb-3 leading-relaxed font-medium drop-shadow-md">
+            "{img.prompt}"
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md ${
+                isCopied
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-white/95 text-zinc-900 hover:bg-white'
+              }`}
+            >
+              {isCopied ? <Check size={14} /> : <Copy size={14} />}
+              {isCopied ? 'Copied!' : 'Copy Prompt'}
+            </button>
+            {!!img.downloads_count && (
+              <div className="flex flex-col items-center text-white/80 text-[10px] gap-0.5 drop-shadow">
+                <Download size={13} />
+                <span>{img.downloads_count}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </Link>
 
-      <div className="absolute bottom-2 right-2 z-30" ref={menuRef}>
-        <button 
-          onClick={(e) => { e.preventDefault(); setShowMenu(!showMenu); }}
-          className={`p-2 rounded-full backdrop-blur-md border transition-all duration-200 shadow-lg
-            ${showMenu ? 'bg-accent text-white border-accent' : 
-            'bg-black/30 text-white border-white/20 opacity-0 group-hover:opacity-100 hover:bg-black/50'}
-          `}
-        >
-          <MoreVertical size={16} />
-        </button>
-
-        {showMenu && (
-          <div className="absolute bottom-full right-0 mb-2 w-48 bg-surface border border-surfaceHighlight rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
-            <div className="py-1">
-              <button onClick={(e) => handleAction('copy', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 transition-colors">
-                <Copy size={14} /> Copy Prompt
-              </button>
-              <button onClick={(e) => handleAction('remix', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 transition-colors">
-                <Sparkles size={14} className="text-purple-500" /> Remix (Gemini)
-              </button>
-              <button onClick={(e) => handleAction('download', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 transition-colors">
-                <Download size={14} /> Download
-              </button>
-              <button onClick={(e) => handleAction('share', e)} className="w-full text-left px-4 py-3 text-sm text-textPrimary hover:bg-surfaceHighlight flex items-center gap-2 border-t border-surfaceHighlight transition-colors">
-                <Share2 size={14} /> Share
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Category badge */}
+      {img.category && (
+        <div className="absolute top-2.5 left-2.5 pointer-events-none">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/50 text-white backdrop-blur-sm border border-white/10">
+            {img.category}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

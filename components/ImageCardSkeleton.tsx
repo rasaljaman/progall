@@ -1,16 +1,20 @@
 import React from 'react';
 
-const ImageCardSkeleton: React.FC = () => {
-  return (
-    <div className="mb-4">
-      <div className="relative overflow-hidden rounded-xl bg-surface shadow-card border border-white/5">
-        <div className="w-full h-64 bg-gray-700/50 animate-pulse"></div>
-        <div className="absolute bottom-0 w-full p-3 bg-black/20">
-           <div className="h-4 bg-gray-600/50 rounded w-2/3 animate-pulse"></div>
-        </div>
-      </div>
+/**
+ * Modern shimmer skeleton card — matches the grid image card size.
+ * Uses the .skeleton-shimmer CSS class for the wave animation.
+ */
+const ImageCardSkeleton: React.FC = () => (
+  <div className="rounded-2xl overflow-hidden border border-border/40 bg-surface">
+    {/* Image area */}
+    <div className="aspect-[4/3] w-full skeleton-shimmer" />
+
+    {/* Text area */}
+    <div className="p-3 space-y-2">
+      <div className="h-3 w-3/4 rounded-full skeleton-shimmer" />
+      <div className="h-3 w-1/2 rounded-full skeleton-shimmer" />
     </div>
-  );
-};
+  </div>
+);
 
 export default ImageCardSkeleton;

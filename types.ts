@@ -10,6 +10,9 @@ export interface ImageItem {
   created_at?: string;
   is_featured?: boolean;
   created_by?: string;
+  downloads_count?: number;
+  copies_count?: number;
+  views_count?: number;
 }
 
 export type SortOption = 'newest' | 'oldest' | 'popular';
