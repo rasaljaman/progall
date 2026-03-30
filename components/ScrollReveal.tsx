@@ -6,7 +6,7 @@ interface ScrollRevealProps {
   delay?: number;
 }
 
-const ScrollReveal: React.FC<ScrollRevealProps> = ({ children, className = "", delay = 10000 }) => {
+const ScrollReveal: React.FC<ScrollRevealProps> = ({ children, className = "", delay = 400 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

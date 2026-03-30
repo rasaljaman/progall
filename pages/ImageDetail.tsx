@@ -152,6 +152,22 @@ const ImageDetail: React.FC = () => {
     logUserEvent('copy_prompt', { item_id: image.id, prompt_length: image.prompt.length });
   };
 
+  // Returns the best Gemini URL for the current browser/device:
+  // - Android Chromium (Chrome, Kiwi, Edge, Brave): intent:// URL that opens
+  //   the Gemini app directly; falls back to web if app is not installed.
+  // - Firefox on Android / iOS / Desktop: regular https URL.
+  const getGeminiUrl = () => {
+    const ua = navigator.userAgent;
+    const isAndroid  = /android/i.test(ua);
+    const isFirefox  = /firefox|fxios/i.test(ua);
+    if (isAndroid && !isFirefox) {
+      // Android Intent URL — Chrome/Kiwi/Edge/Brave open the Gemini app;
+      // if not installed, S.browser_fallback_url sends them to the website.
+      return 'intent://gemini.google.com/app#Intent;scheme=https;package=com.google.android.apps.bard;S.browser_fallback_url=https%3A%2F%2Fgemini.google.com%2Fapp;end';
+    }
+    return 'https://gemini.google.com/app';
+  };
+
   const handleGeminiRemix = () => {
     if (!image) return;
     logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
@@ -292,7 +308,7 @@ const ImageDetail: React.FC = () => {
             {/* Action buttons */}
             <div className="grid grid-cols-2 gap-3">
               <a
-                href="https://gemini.google.com/app"
+                href={getGeminiUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleGeminiRemix}
