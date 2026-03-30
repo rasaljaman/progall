@@ -155,10 +155,21 @@ const ImageDetail: React.FC = () => {
   const handleGeminiRemix = () => {
     if (!image) return;
     logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
-    window.open('https://gemini.google.com/app', '_blank');
+
+    // Use <a> click instead of window.open() — Android Chrome blocks window.open
+    // as a popup, but always allows a synchronous anchor click from a user gesture.
+    const a = document.createElement('a');
+    a.href = 'https://gemini.google.com/app';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Copy prompt after navigation (async ok here since the nav already fired)
     navigator.clipboard.writeText(image.prompt)
-      .then(() => showToast('Prompt copied! Paste it in Gemini.'))
-      .catch(() => showToast('Prompt copied!'));
+      .then(() => showToast('Prompt copied! Paste it in Gemini. 🎨'))
+      .catch(() => showToast('Opening Gemini...'));
   };
 
   const handleDownload = () => {
