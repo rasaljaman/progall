@@ -242,25 +242,35 @@ const ImageDetail: React.FC = () => {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  const handleWhatsApp = async () => {
+  const handleWhatsApp = () => {
     if (!image) return;
     logUserEvent('share', { method: 'whatsapp', item_id: image.id });
-    if (navigator.share) {
-      try {
-        const caption = `"${image.prompt.slice(0, 150)}..."\n\n🔗 Get it here: ${window.location.href}`;
-        await navigator.clipboard.writeText(caption);
-        showToast('Caption copied! Paste it in WhatsApp.', 'success');
-        const response = await fetch(image.url);
-        const blob = await response.blob();
-        const file = new File([blob], 'progall-art.jpg', { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'ProGall Art', text: caption }); return;
-        }
-      } catch { /* fall through */ }
-    }
-    const text = encodeURIComponent(`✨ AI Art from ProGall:\n\n"${image.prompt.substring(0, 100)}..."\n\n${window.location.href}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+
+    // wa.me/?text= is the ONLY reliable cross-platform WhatsApp share method:
+    //   Mobile  → opens WhatsApp app with caption pre-filled ✅
+    //   Desktop → opens WhatsApp Web with caption pre-filled ✅
+    // navigator.share causes: OS share dialog on desktop, text dropped on mobile.
+    // The page URL at the bottom triggers WhatsApp's automatic image preview card.
+    const caption = [
+      `🎨 *AI Art Prompt* | ProGall`,
+      ``,
+      `📝 *Full Prompt:*`,
+      image.prompt,
+      ``,
+      `🏷️ *Category:* ${image.category}`,
+      ``,
+      `🖼️ *View & download the image:*`,
+      window.location.href,
+    ].join('\n');
+
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(caption)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
+
+
 
   const handlePinterest = () => {
     if (!image) return;
