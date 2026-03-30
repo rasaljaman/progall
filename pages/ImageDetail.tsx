@@ -5,8 +5,8 @@ import { supabaseService, supabase } from '../services/supabaseService';
 import { logUserEvent } from '../services/firebaseAnalytics';
 import { ImageItem } from '../types';
 import {
-  ArrowLeft, Copy, Download, Edit2, Sparkles, Share2,
-  Clock, Grid3x3, Layers
+  ArrowLeft, Copy, Check, Download, Edit2, Sparkles, Share2,
+  Clock, Grid3x3, Layers, AlertTriangle, Info, ChevronDown, ChevronUp, Lightbulb
 } from 'lucide-react';
 import EditImageModal from '../components/EditImageModal';
 import GalleryGrid from '../components/GalleryGrid';
@@ -24,6 +24,33 @@ const PinterestIcon = () => (
     <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.399.165-1.487-.695-2.432-2.878-2.432-4.646 0-3.776 2.748-7.252 7.951-7.252 4.173 0 7.41 2.967 7.41 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z" />
   </svg>
 );
+
+// ── CopyableTip — inline copyable prompt snippet ───────────────────────────
+const CopyableTip: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div className="flex items-start gap-2 bg-surfaceHighlight rounded-lg border border-border/60 px-3 py-2">
+      <code className="text-[11px] text-accent flex-1 leading-relaxed font-mono break-all">{text}</code>
+      <button
+        onClick={handleCopy}
+        className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition-all mt-0.5 ${
+          copied
+            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+            : 'bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20'
+        }`}
+      >
+        {copied ? <Check size={11} /> : <Copy size={11} />}
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  );
+};
 
 // ── Tab definition ─────────────────────────────────────────────────────────
 type TabId = 'related' | 'latest' | 'category';
@@ -57,6 +84,8 @@ const ImageDetail: React.FC = () => {
   const [tabImages,     setTabImages]     = useState<ImageItem[]>([]);
   const [tabLoading,    setTabLoading]    = useState(false);
   const [tabFetchCache, setTabFetchCache] = useState<Partial<Record<TabId, ImageItem[]>>>({});
+
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
 
   // Scroll to top when image changes
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
@@ -330,6 +359,15 @@ const ImageDetail: React.FC = () => {
               </button>
             </div>
 
+            {/* AI Disclaimer banner */}
+            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+              <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                <span className="font-semibold">AI can make mistakes.</span>{' '}
+                Results may vary — exact styles, faces, or details might differ. Use this prompt as a starting point and refine as needed.
+              </p>
+            </div>
+
             {/* Action buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -362,6 +400,83 @@ const ImageDetail: React.FC = () => {
                 ))}
               </div>
             )}
+
+            {/* ══ Troubleshooting Accordion ══ */}
+            <div className="rounded-xl border border-border/60 overflow-hidden">
+              <button
+                onClick={() => setShowTroubleshoot(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-surfaceHighlight hover:bg-border/40 transition-colors text-sm font-semibold text-textPrimary"
+              >
+                <span className="flex items-center gap-2 text-left">
+                  <Lightbulb size={15} className="text-amber-500 shrink-0" />
+                  Not getting the result you expected?
+                </span>
+                {showTroubleshoot
+                  ? <ChevronUp size={15} className="text-textSecondary shrink-0" />
+                  : <ChevronDown size={15} className="text-textSecondary shrink-0" />
+                }
+              </button>
+
+              {showTroubleshoot && (
+                <div className="px-4 pb-4 pt-3 bg-surface space-y-3">
+
+                  {/* Face accuracy — copyable tip */}
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">👤</span>
+                      <p className="text-xs font-bold text-textPrimary">Face / person doesn't look accurate</p>
+                    </div>
+                    <p className="text-xs text-textSecondary leading-relaxed">
+                      If the face doesn't match your reference image, append this phrase to the end of your prompt:
+                    </p>
+                    <CopyableTip text="use the attached reference image, maintain 100% accurate facial features, exact likeness, photorealistic face match" />
+                    <p className="text-[11px] text-textSecondary/70">
+                      💡 In Midjourney, also use <code className="bg-surfaceHighlight px-1 rounded text-accent">--cref [image URL]</code> to pass a character reference.
+                    </p>
+                  </div>
+
+                  {/* Other tips */}
+                  {[
+                    {
+                      icon: '🎨',
+                      title: "Style or art direction is off",
+                      tip: "Be more specific — instead of \"painting\", try \"impressionist oil painting with thick brushstrokes\" or name a known artist style like \"in the style of Greg Rutkowski\".",
+                    },
+                    {
+                      icon: '🖼️',
+                      title: "Wrong composition or framing",
+                      tip: "Specify the shot type: \"extreme close-up\", \"full body portrait\", \"overhead aerial view\", or \"Dutch angle cinematic shot\". Include subject position if needed.",
+                    },
+                    {
+                      icon: '🎭',
+                      title: "Colors or mood don't feel right",
+                      tip: "Name the palette explicitly: \"warm golden hour tones\", \"cool desaturated blues\", or \"vibrant neon cyberpunk colors\". Add mood words: \"melancholic\", \"epic\", \"peaceful\".",
+                    },
+                    {
+                      icon: '⚙️',
+                      title: "Image looks blurry or low quality",
+                      tip: "Add quality boosters to the end of your prompt: \"8K resolution, ultra-detailed, sharp focus, professional photography\". In Midjourney try --q 2; in Stable Diffusion raise CFG scale to 7–10.",
+                    },
+                  ].map((item, i) => (
+                    <div key={i} className="flex gap-3 p-3 rounded-lg bg-surfaceHighlight border border-border/40">
+                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                      <div>
+                        <p className="text-xs font-bold text-textPrimary mb-0.5">{item.title}</p>
+                        <p className="text-xs text-textSecondary leading-relaxed">{item.tip}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex items-start gap-2 mt-1 px-1">
+                    <Info size={12} className="text-textSecondary shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-textSecondary leading-relaxed">
+                      AI generators are probabilistic — the same prompt can produce different results each run. Try tweaking the seed, model version, or a few words in the prompt for best results.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
 
