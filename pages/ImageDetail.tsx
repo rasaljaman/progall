@@ -155,21 +155,10 @@ const ImageDetail: React.FC = () => {
   const handleGeminiRemix = () => {
     if (!image) return;
     logUserEvent('remix_gemini', { item_id: image.id, category: image.category });
-
-    // Use <a> click instead of window.open() — Android Chrome blocks window.open
-    // as a popup, but always allows a synchronous anchor click from a user gesture.
-    const a = document.createElement('a');
-    a.href = 'https://gemini.google.com/app';
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // Copy prompt after navigation (async ok here since the nav already fired)
+    // Copy prompt to clipboard so user can paste it in Gemini
     navigator.clipboard.writeText(image.prompt)
       .then(() => showToast('Prompt copied! Paste it in Gemini. 🎨'))
-      .catch(() => showToast('Opening Gemini...'));
+      .catch(() => {});
   };
 
   const handleDownload = () => {
@@ -302,12 +291,15 @@ const ImageDetail: React.FC = () => {
 
             {/* Action buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <button
+              <a
+                href="https://gemini.google.com/app"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={handleGeminiRemix}
                 className="col-span-2 py-3.5 bg-gradient-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-accent hover:opacity-90 transition-all hover:shadow-glow active:scale-[0.98]"
               >
                 <Sparkles size={18} /> Remix on Gemini
-              </button>
+              </a>
               <button onClick={handleDownload} className="py-3 bg-surfaceHighlight border border-border rounded-xl text-textPrimary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-border transition-colors">
                 <Download size={16} /> Download
               </button>
