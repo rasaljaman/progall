@@ -1,105 +1,101 @@
 <!doctype html>
 <html lang="en" class="dark">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-        <title>ProGall | AI Prompt Gallery</title>
-        <link rel="icon" type="image/jpeg" href="/logo.jpg" />
-        <link rel="apple-touch-icon" href="/logo.jpg" />
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-        <meta
-            name="description"
-            content="ProGall is the premium AI art prompt gallery. Discover, copy, and create stunning generative art using our curated prompts for Midjourney, DALL-E 3, Stable Diffusion, and Google Gemini."
-        />
-        <meta name="author" content="ProGall Team" />
-        <link rel="canonical" href="https://progall.tech/" />
-        <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; block-all-mixed-content">
-        <meta property="og:title" content="ProGall - AI Prompt Gallery" />
-        <meta property="og:image" content="/logo.jpg" />
-        <meta property="og:type" content="website" />
-        <meta name="theme-color" content="#0f1112" />
-        <meta
-            name="google-site-verification"
-            content="PVXJ8uLnA8MpnQUTn-8jpMNIt9964ART96KRS_FB2xM"
-        />
+    <title>ProGall | AI Prompt Gallery</title>
+    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+    <link rel="apple-touch-icon" href="/logo.jpg" />
 
-        <meta name="google-adsense-account" content="ca-pub-3266776208656447" />
+    <meta name="description"
+        content="ProGall is the premium AI art prompt gallery. Discover, copy, and create stunning generative art using our curated prompts for Midjourney, DALL-E 3, Stable Diffusion, and Google Gemini." />
+    <meta name="author" content="ProGall Team" />
+    <link rel="canonical" href="https://progall.tech/" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; block-all-mixed-content">
+    <meta property="og:title" content="ProGall - AI Prompt Gallery" />
+    <meta property="og:image" content="/logo.jpg" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0f1112" />
+    <meta name="google-site-verification" content="PVXJ8uLnA8MpnQUTn-8jpMNIt9964ART96KRS_FB2xM" />
 
-        <script
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3266776208656447"
-            crossorigin="anonymous"
-        ></script>
+    <meta name="google-adsense-account" content="ca-pub-3266776208656447" />
 
-        <!--  <script
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3266776208656447"
+        crossorigin="anonymous"></script>
+
+    <!--  <script
             async
             src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3266776208656447"
             crossorigin="anonymous"
         ></script> -->
-        <!-- <script src="https://cdn.tailwindcss.com"></script> -->
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
 
-        <!-- Google tag (gtag.js) -->
-        <script
-            async
-            src="https://www.googletagmanager.com/gtag/js?id=G-6WNJRJTKSY"
-        ></script>
-        <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag() {
-                dataLayer.push(arguments);
-            }
-            gtag("js", new Date());
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6WNJRJTKSY"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag("js", new Date());
 
-            gtag("config", "G-6WNJRJTKSY");
-        </script>
+        gtag("config", "G-6WNJRJTKSY");
+    </script>
 
-        <style>
-            :root {
-                /* --- LIGHT MODE PALETTE --- */
-                /* Updated: Background is now a very pale Teal (matches logo) instead of plain white */
-                --bg-color: #f4fbfb; /* Teal 50 */
-                --surface-color: #ffffff; /* Pure White cards */
-                --surface-highlight: #ccfbf1; /* Teal 100 for borders/hovers */
-                --text-primary: #115e59; /* Teal 900 (Dark Teal Text) */
-                --text-secondary: #5eead4; /* Teal 600 (Softer Teal Text) */
-                --accent: #0d9488; /* Teal 600 (Logo Color) */
-            }
+    <style>
+        :root {
+            /* --- LIGHT MODE PALETTE --- */
+            /* Updated: Background is now a very pale Teal (matches logo) instead of plain white */
+            --bg-color: #f4fbfb;
+            /* Teal 50 */
+            --surface-color: #ffffff;
+            /* Pure White cards */
+            --surface-highlight: #ccfbf1;
+            /* Teal 100 for borders/hovers */
+            --text-primary: #115e59;
+            /* Teal 900 (Dark Teal Text) */
+            --text-secondary: #5eead4;
+            /* Teal 600 (Softer Teal Text) */
+            --accent: #0d9488;
+            /* Teal 600 (Logo Color) */
+        }
 
-            .dark {
-                /* --- DARK MODE PALETTE (Unchanged) --- */
-                --bg-color: #0f1112;
-                --surface-color: #1e2124;
-                --surface-highlight: #2c3035;
-                --text-primary: #eceff1;
-                --text-secondary: #94a3b8;
-                --accent: #2dd4bf;
-            }
+        .dark {
+            /* --- DARK MODE PALETTE (Unchanged) --- */
+            --bg-color: #0f1112;
+            --surface-color: #1e2124;
+            --surface-highlight: #2c3035;
+            --text-primary: #eceff1;
+            --text-secondary: #94a3b8;
+            --accent: #2dd4bf;
+        }
 
-            body {
-                background-color: var(--bg-color);
-                color: var(--text-primary);
-                transition:
-                    background-color 0.3s ease,
-                    color 0.3s ease;
-            }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            transition:
+                background-color 0.3s ease,
+                color 0.3s ease;
+        }
 
-            .no-scrollbar::-webkit-scrollbar {
-                display: none;
-            }
-            .no-scrollbar {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-            }
-        </style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
 
-        <!-- <script>
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+
+    <!-- <script>
             tailwind.config = {
                 darkMode: "class",
                 theme: {
@@ -122,7 +118,7 @@
             };
         </script> -->
 
-        <script type="importmap">
+    <script type="importmap">
             {
                 "imports": {
                     "react/": "https://aistudiocdn.com/react@^19.2.0/",
@@ -134,29 +130,45 @@
                 }
             }
         </script>
-        <link rel="stylesheet" href="/index.css" />
-    </head>
-    <body>
-        <div id="root">
-            <!-- SEO Fallback Content for Crawlers (Replaced by React on load) -->
-            <div style="padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;">
-                <h1>ProGall - The Premium AI Art Prompt Gallery</h1>
-                <p>Welcome to ProGall, the most comprehensive gallery of high-quality AI art prompts. Whether you are using Midjourney, Stable Diffusion, DALL-E 3, or Google Gemini, finding the exact right prompt is the key to creating stunning generative art. We curate thousands of the best prompts to help you overcome "blank canvas syndrome".</p>
-                <h2>Mastering Midjourney and DALL-E 3</h2>
-                <p>Prompt engineering is an essential skill in the age of generative AI. On ProGall, you can browse images by style—such as Cyberpunk, Anime, Photorealism, Cinematic, and Fantasy—and instantly see the exact text used to generate them. We include all parameters, such as aspect ratios (--ar 16:9), model versions (--v 6.0), and stylize values, so you can perfectly replicate or remix the results.</p>
-                <h2>What Makes a Good AI Prompt?</h2>
-                <p>A high-quality prompt typically includes the main subject, environmental context, lighting conditions, camera angles, and stylistic modifiers. For example, instead of just saying "a cat", a well-engineered prompt might be: "A cinematic macro photograph of a majestic Maine Coon cat sitting on a neon-lit cyberpunk street, dramatic rim lighting, 85mm lens, f/1.8, unreal engine 5 render, highly detailed." Here on ProGall, we focus on clean, effective prompts that yield consistent results.</p>
-                <h2>Free and Open Source Inspiration</h2>
-                <p>We believe that creativity should not be locked behind a paywall. All prompts on ProGall are completely free to use. There are no subscriptions required. Simply find an image you love, click "Copy Prompt", and paste it into your favorite generative AI tool. Enhance your workflow today with the best prompts on the web.</p>
-                <ul>
-                    <li>Extensive collection of curated prompts</li>
-                    <li>Support for Midjourney, DALL-E 3, Stable Diffusion, and Gemini</li>
-                    <li>Detailed breakdown of negative prompts and parameters</li>
-                    <li>Free to use for commercial and personal projects</li>
-                </ul>
-                <p>Learn more on our <a href="/about">About Us</a> page or review our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
-            </div>
+    <link rel="stylesheet" href="/index.css" />
+</head>
+
+<body>
+    <div id="root">
+        <!-- SEO Fallback Content for Crawlers (Replaced by React on load) -->
+        <div style="padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;">
+            <h1>ProGall - The Premium AI Art Prompt Gallery</h1>
+            <p>Welcome to ProGall, the most comprehensive gallery of high-quality AI art prompts. Whether you are using
+                Midjourney, Stable Diffusion, DALL-E 3, or Google Gemini, finding the exact right prompt is the key to
+                creating stunning generative art. We curate thousands of the best prompts to help you overcome "blank
+                canvas syndrome".</p>
+            <h2>Mastering Midjourney and DALL-E 3</h2>
+            <p>Prompt engineering is an essential skill in the age of generative AI. On ProGall, you can browse images
+                by style—such as Cyberpunk, Anime, Photorealism, Cinematic, and Fantasy—and instantly see the exact text
+                used to generate them. We include all parameters, such as aspect ratios (--ar 16:9), model versions (--v
+                6.0), and stylize values, so you can perfectly replicate or remix the results.</p>
+            <h2>What Makes a Good AI Prompt?</h2>
+            <p>A high-quality prompt typically includes the main subject, environmental context, lighting conditions,
+                camera angles, and stylistic modifiers. For example, instead of just saying "a cat", a well-engineered
+                prompt might be: "A cinematic macro photograph of a majestic Maine Coon cat sitting on a neon-lit
+                cyberpunk street, dramatic rim lighting, 85mm lens, f/1.8, unreal engine 5 render, highly detailed."
+                Here on ProGall, we focus on clean, effective prompts that yield consistent results.</p>
+            <h2>Free and Open Source Inspiration</h2>
+            <p>We believe that creativity should not be locked behind a paywall. All prompts on ProGall are completely
+                free to use. There are no subscriptions required. Simply find an image you love, click "Copy Prompt",
+                and paste it into your favorite generative AI tool. Enhance your workflow today with the best prompts on
+                the web.</p>
+            <ul>
+                <li>Extensive collection of curated prompts</li>
+                <li>Support for Midjourney, DALL-E 3, Stable Diffusion, and Gemini</li>
+                <li>Detailed breakdown of negative prompts and parameters</li>
+                <li>Free to use for commercial and personal projects</li>
+            </ul>
+            <p>Learn more on our <a href="/about">About Us</a> page or review our <a href="/privacy">Privacy Policy</a>
+                and <a href="/terms">Terms of Service</a>.</p>
         </div>
-        <script type="module" src="/index.tsx"></script>
-    </body>
+    </div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>
