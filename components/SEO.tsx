@@ -42,18 +42,45 @@ const SEO: React.FC<SEOProps> = ({
 
       {/* Google Structured Data (JSON-LD) */}
       <script type="application/ld+json">
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": type === 'article' ? "ImageObject" : "WebSite",
-          "name": fullTitle,
-          "description": description,
-          "url": url,
-          "image": image,
-          "author": {
-             "@type": "Organization",
-             "name": "ProGall"
+        {JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "ProGall",
+            "url": "https://progall.tech",
+            "logo": "https://progall.tech/logo.jpg",
+            "sameAs": [
+              "https://www.instagram.com/progall_",
+              "https://www.threads.net/@progall_"
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "ProGall",
+            "url": "https://progall.tech",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://progall.tech/?search={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          },
+          type === 'article' && {
+            "@context": "https://schema.org",
+            "@type": "ImageObject",
+            "name": fullTitle,
+            "description": description,
+            "url": url,
+            "image": image,
+            "author": {
+               "@type": "Organization",
+               "name": "ProGall"
+            }
           }
-        })}
+        ].filter(Boolean))}
       </script>
     </Helmet>
   );

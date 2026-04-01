@@ -19,6 +19,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import Snowfall from './components/Christmas/Snowfall';
 import HolidayGift from './components/Christmas/HolidayGift';
 import ChristmasPage from './pages/ChristmasPage';
+import CookieConsent from './components/CookieConsent';
 
 import { supabase, supabaseService } from './services/supabaseService';
 
@@ -169,6 +170,7 @@ const App: React.FC = () => {
         </main>
 
         <Footer />
+        <CookieConsent />
       </div>
     </Router>
   );

@@ -10,8 +10,11 @@
 
         <meta
             name="description"
-            content="Discover high-quality AI art prompts."
+            content="ProGall is the premium AI art prompt gallery. Discover, copy, and create stunning generative art using our curated prompts for Midjourney, DALL-E 3, Stable Diffusion, and Google Gemini."
         />
+        <meta name="author" content="ProGall Team" />
+        <link rel="canonical" href="https://progall.tech/" />
+        <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; block-all-mixed-content">
         <meta property="og:title" content="ProGall - AI Prompt Gallery" />
         <meta property="og:image" content="/logo.jpg" />
         <meta property="og:type" content="website" />
@@ -134,7 +137,26 @@
         <link rel="stylesheet" href="/index.css" />
     </head>
     <body>
-        <div id="root"></div>
+        <div id="root">
+            <!-- SEO Fallback Content for Crawlers (Replaced by React on load) -->
+            <div style="padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;">
+                <h1>ProGall - The Premium AI Art Prompt Gallery</h1>
+                <p>Welcome to ProGall, the most comprehensive gallery of high-quality AI art prompts. Whether you are using Midjourney, Stable Diffusion, DALL-E 3, or Google Gemini, finding the exact right prompt is the key to creating stunning generative art. We curate thousands of the best prompts to help you overcome "blank canvas syndrome".</p>
+                <h2>Mastering Midjourney and DALL-E 3</h2>
+                <p>Prompt engineering is an essential skill in the age of generative AI. On ProGall, you can browse images by style—such as Cyberpunk, Anime, Photorealism, Cinematic, and Fantasy—and instantly see the exact text used to generate them. We include all parameters, such as aspect ratios (--ar 16:9), model versions (--v 6.0), and stylize values, so you can perfectly replicate or remix the results.</p>
+                <h2>What Makes a Good AI Prompt?</h2>
+                <p>A high-quality prompt typically includes the main subject, environmental context, lighting conditions, camera angles, and stylistic modifiers. For example, instead of just saying "a cat", a well-engineered prompt might be: "A cinematic macro photograph of a majestic Maine Coon cat sitting on a neon-lit cyberpunk street, dramatic rim lighting, 85mm lens, f/1.8, unreal engine 5 render, highly detailed." Here on ProGall, we focus on clean, effective prompts that yield consistent results.</p>
+                <h2>Free and Open Source Inspiration</h2>
+                <p>We believe that creativity should not be locked behind a paywall. All prompts on ProGall are completely free to use. There are no subscriptions required. Simply find an image you love, click "Copy Prompt", and paste it into your favorite generative AI tool. Enhance your workflow today with the best prompts on the web.</p>
+                <ul>
+                    <li>Extensive collection of curated prompts</li>
+                    <li>Support for Midjourney, DALL-E 3, Stable Diffusion, and Gemini</li>
+                    <li>Detailed breakdown of negative prompts and parameters</li>
+                    <li>Free to use for commercial and personal projects</li>
+                </ul>
+                <p>Learn more on our <a href="/about">About Us</a> page or review our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
+            </div>
+        </div>
         <script type="module" src="/index.tsx"></script>
     </body>
 </html>

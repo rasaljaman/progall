@@ -234,9 +234,13 @@ const Home: React.FC = () => {
             </div>
             <h3 className="text-lg font-bold text-textPrimary">Master Prompt Engineering</h3>
             <p className="text-textSecondary text-sm leading-relaxed">
-              Learn to control lighting, camera angles, and styles. Our gallery includes exact parameters
-              like <code className="text-accent text-xs bg-accent/10 px-1 rounded">--ar 16:9</code>,{' '}
-              <code className="text-accent text-xs bg-accent/10 px-1 rounded">--v 6.0</code>, and negative prompts.
+              Prompt engineering is no longer just a trend; it is the fundamental skill required to communicate with cutting-edge AI models. Whether you are generating assets for a game, designing a website, or simply exploring creative visions, the quality of your output is entirely dependent on the quality of your input (your prompt). 
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed pt-2">
+              Our gallery acts as a masterclass. By studying the exact phrasing, structure, and parameters used to create stunning visuals, you can learn how to control lighting (e.g., <em>"dramatic rim lighting"</em>), camera angles (e.g., <em>"low angle, ultra-wide lens"</em>), and stylistic nuances. For Midjourney users, we include precise flags like <code className="text-accent text-xs bg-accent/10 px-1 rounded">--ar 16:9</code> (aspect ratio), <code className="text-accent text-xs bg-accent/10 px-1 rounded">--v 6.0</code> (version), and <code className="text-accent text-xs bg-accent/10 px-1 rounded">--style raw</code>.
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed pt-2">
+              Beyond just the subject matter, the best prompts incorporate environmental context and mood. Instead of "a car," experienced creators write: <em>"A vintage Porsche 911 driving through a neon-lit cyberpunk metropolis during a heavy rainstorm, cinematic lighting, photorealistic, 8k resolution, Unreal Engine 5 render."</em>
             </p>
           </div>
 
@@ -244,10 +248,15 @@ const Home: React.FC = () => {
             <div className="bg-purple-500/10 w-11 h-11 rounded-xl flex items-center justify-center text-purple-500">
               <BookOpen size={22} />
             </div>
-            <h3 className="text-lg font-bold text-textPrimary">Copy, Paste, Create</h3>
+            <h3 className="text-lg font-bold text-textPrimary">Copy, Paste, Create: The Ultimate Resource</h3>
             <p className="text-textSecondary text-sm leading-relaxed">
-              Every image comes with its full prompt. Click "Copy Prompt" and paste it into Discord,
-              Bing Image Creator, or Stable Diffusion — no guesswork needed.
+              ProGall is designed specifically to eliminate "blank canvas syndrome." We understand the frustration of staring at an empty chat box, unsure of how to articulate the image you see in your mind. That is why every single image in our gallery comes paired with its complete, unedited prompt. 
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed pt-2">
+              With a single click on the <strong className="text-textPrimary">"Copy Prompt"</strong> button, the exact text is copied to your clipboard. You can then paste it directly into Discord for Midjourney, the Microsoft Designer interface for DALL-E 3, the Stable Diffusion WebUI, or the Google Gemini chat prompt.
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed pt-2">
+              The flexibility of our platform allows you to use these prompts as starting points. Once pasted, simply swap out subjects or settings to instantly generate your own unique piece of artwork. For example, change <em>"a neon-lit cyberpunk metropolis"</em> to <em>"a serene elven forest"</em> and watch the AI seamlessly adapt the lighting and composition to your new vision. It is the fastest way to get exactly what you want.
             </p>
           </div>
 
@@ -255,10 +264,15 @@ const Home: React.FC = () => {
             <div className="bg-orange-500/10 w-11 h-11 rounded-xl flex items-center justify-center text-orange-500">
               <Zap size={22} />
             </div>
-            <h3 className="text-lg font-bold text-textPrimary">Daily Inspiration</h3>
+            <h3 className="text-lg font-bold text-textPrimary">Daily Inspiration & Platform Nuances</h3>
             <p className="text-textSecondary text-sm leading-relaxed">
-              We update daily with trending styles — Cyberpunk, Anime, Photorealism, 3D Rendering.
-              Bookmark ProGall to stay ahead of the generative AI curve.
+              The AI landscape evolves rapidly. What works for Midjourney v5 might act differently in DALL-E 3 or Stable Diffusion XL. We continuously update our generative AI gallery with fresh, daily inspiration covering all the major trending styles: Anime, Hyper-realism, 3D Rendering, Watercolor, Vector Illustration, and Isometric Art.
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed pt-2">
+              Understanding the differences between platforms is crucial. Midjourney excels at artistic interpretations and highly detailed textures; DALL-E 3 is unparalleled in its strict adherence to complex, literal instructions; Google Gemini offers excellent creative brainstorming and rapid iteration; while Stable Diffusion offers granular control for power users.
+            </p>
+            <p className="text-textSecondary text-sm leading-relaxed pt-2">
+              By exploring ProGall, you can visually see the strengths of each model. We encourage you to bookmark our site, share your findings, and return daily to stay ahead of the generative AI curve. Whether you are a professional graphic designer, an indie game developer, or a hobbyist, ProGall is the definitive gallery for elevating your AI creations.
             </p>
           </div>
 
