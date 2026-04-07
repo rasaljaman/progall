@@ -9,7 +9,6 @@ import {
   Search, X, ChevronDown, ChevronUp,
   Sparkles, BookOpen, Zap
 } from 'lucide-react';
-import AdCard from '../components/AdCard';
 
 // ---------------------------------------------------------------------------
 // Home page
@@ -190,11 +189,6 @@ const Home: React.FC = () => {
               {visibleImages.map((img, index) => (
                 <React.Fragment key={img.id}>
                   <ImageCard img={img} copiedId={copiedId} onCopy={handleCopy} index={index} />
-
-                  {/* Ad injection after every 11th image */}
-                  {(index + 1) % 12 === 0 && (
-                    <AdCard />
-                  )}
                 </React.Fragment>
               ))}
             </div>

@@ -15,6 +15,8 @@ import Contact from './pages/Contact';
 import About from './pages/About';
 import FAQ from './pages/FAQ';
 import AnalyticsPage from './pages/AnalyticsPage';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 
 import Snowfall from './components/Christmas/Snowfall';
 import HolidayGift from './components/Christmas/HolidayGift';
@@ -156,6 +158,8 @@ const App: React.FC = () => {
             <Route path="/contact" element={<Contact />} />
             <Route path="/about"   element={<About />} />
             <Route path="/faq"     element={<FAQ />} />
+            <Route path="/blog"    element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPost />} />
 
             <Route
               path="/admin/login"

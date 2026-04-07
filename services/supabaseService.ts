@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { ImageItem, AuditLog } from '../types';
+import { ImageItem, AuditLog, BlogPost } from '../types';
 import imageCompression from 'browser-image-compression'; // Phase 4: Compression
 
 // Initialize the client
@@ -241,6 +241,64 @@ export class SupabaseService {
     const { error } = await supabase.from('images').delete().eq('id', id);
     if (error) throw error;
     await logActivity('DELETE', `Deleted image ID: ${id.slice(0, 8)}`);
+  }
+
+  // --- BLOG OPERATIONS ---
+
+  async getBlogs(publishedOnly: boolean = false): Promise<BlogPost[]> {
+    let query = supabase
+      .from('blogs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (publishedOnly) {
+      query = query.eq('is_published', true);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data as BlogPost[];
+  }
+
+  async getBlogBySlug(slug: string): Promise<BlogPost | undefined> {
+    const { data, error } = await supabase
+      .from('blogs')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+
+    if (error) return undefined;
+    return data as BlogPost;
+  }
+
+  async createBlog(blog: Omit<BlogPost, 'id' | 'created_at'>): Promise<BlogPost> {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error("User must be logged in");
+
+    const { data, error } = await supabase.from('blogs').insert([blog]).select().single();
+    if (error) throw error;
+    await logActivity('BLOG_CREATE', `Created blog: "${blog.title}"`);
+    return data as BlogPost;
+  }
+
+  async updateBlog(id: string, blog: Partial<BlogPost>): Promise<BlogPost> {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error("User must be logged in");
+
+    const { data, error } = await supabase.from('blogs').update(blog).eq('id', id).select().single();
+    if (error) throw error;
+    await logActivity('BLOG_UPDATE', `Updated blog ID: ${id.slice(0, 8)}`);
+    return data as BlogPost;
+  }
+
+  async deleteBlog(id: string): Promise<void> {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error("User must be logged in");
+
+    const { error } = await supabase.from('blogs').delete().eq('id', id);
+    if (error) throw error;
+    await logActivity('BLOG_DELETE', `Deleted blog ID: ${id.slice(0, 8)}`);
   }
 }
 

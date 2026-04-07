@@ -68,6 +68,56 @@ const TABS: Tab[] = [
   { id: 'category', label: 'Same Category', icon: <Grid3x3 size={15} />,  description: 'Browse category' },
 ];
 
+// ── Prompt Analysis Component ──────────────────────────────────────────────
+const PromptBreakdown: React.FC<{ prompt: string, category: string }> = ({ prompt, category }) => {
+  const parts = prompt.split(',').map(s => s.trim()).filter(Boolean);
+  const subject = parts[0] || 'the main subject';
+  const styleElements = parts.slice(1);
+  
+  return (
+    <div className="mt-10 mb-8 pt-8 border-t border-border/40">
+      <h3 className="text-xl font-bold text-textPrimary mb-4">Prompt Analysis & Engineering Guide</h3>
+      
+      <div className="space-y-4 text-textSecondary text-sm leading-relaxed">
+        <p>
+          Creating high-quality {category} AI art requires specific vocabulary and structural prompting. When analyzing this prompt, we can break it down into its core functional components to understand why the generative AI model produces such a refined output.
+        </p>
+        
+        <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50 my-5">
+          <h4 className="font-semibold text-textPrimary text-base mb-2">1. Core Subject & Action</h4>
+          <p>
+            The foundation of this generation relies on the opening declaration: <strong>"{subject.length > 60 ? subject.substring(0,60) + '...' : subject}"</strong>. By placing this at the very beginning of the prompt, we instruct the neural network to prioritize this element with the highest attention weight. This ensures the primary subject remains the focal point of the composition before any stylistic filters are applied.
+          </p>
+        </div>
+
+        {styleElements.length > 0 && (
+          <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50 my-5">
+            <h4 className="font-semibold text-textPrimary text-base mb-2">2. Stylization & Environment</h4>
+            <p>
+              To push the model away from generic aesthetics, this prompt utilizes a specific set of modifier tags: 
+            </p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              {styleElements.slice(0, 4).map((style, i) => (
+                <li key={i}><strong>{style}</strong></li>
+              ))}
+            </ul>
+            <p className="mt-3">
+              These keywords act as conditioning parameters. Words related to lighting (like cinematic, ambient, or volumetric) override the AI's default flat lighting. Structural parameters tell the model to simulate specific camera lenses or art mediums, resulting in a significantly more professional aesthetic compared to basic text inputs.
+            </p>
+          </div>
+        )}
+
+        <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50 my-5">
+          <h4 className="font-semibold text-textPrimary text-base mb-2">How to Adapt this Prompt</h4>
+          <p>
+            Prompt engineering is highly iterative. To adapt this {category} prompt for your own project while retaining its high-quality aesthetic, try replacing only the first segment with your desired character, object, or scene. Keep the subsequent lighting and styling keywords intact. This technique allows you to rapidly generate diverse assets—from concept art to marketing materials—while maintaining a consistent, unified visual language across all your generations.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Component ─────────────────────────────────────────────────────────
 const ImageDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -464,6 +514,9 @@ const ImageDetail: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Prompt Analysis / SEO Content Block */}
+            <PromptBreakdown prompt={image.prompt} category={image.category} />
 
             {/* ══ Troubleshooting Accordion ══ */}
             <div className="rounded-xl border border-border/60 overflow-hidden">

@@ -25,9 +25,22 @@ export interface User {
 export interface AuditLog {
   id: string;
   admin_email: string;
-  action: 'UPLOAD' | 'EDIT' | 'DELETE';
+  action: 'UPLOAD' | 'EDIT' | 'DELETE' | 'BLOG_CREATE' | 'BLOG_UPDATE' | 'BLOG_DELETE';
   details: string;
   created_at: string;
+}
+
+export interface BlogPost {
+  id?: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  read_time: string;
+  image_url: string;
+  is_published?: boolean;
+  created_at?: string;
 }
 
 export interface DashboardStats {

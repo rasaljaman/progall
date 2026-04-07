@@ -114,6 +114,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center gap-3"><HelpCircle size={18} /> FAQ</div>
                 <ChevronRight size={14} className="opacity-20 group-hover:opacity-50 transition-opacity" />
               </Link>
+              <Link to="/blog" onClick={onClose} className={linkClass('/blog')}>
+                <div className="flex items-center gap-3"><FileText size={18} /> Guides & Blog</div>
+                <ChevronRight size={14} className="opacity-20 group-hover:opacity-50 transition-opacity" />
+              </Link>
             </div>
           </div>
 
