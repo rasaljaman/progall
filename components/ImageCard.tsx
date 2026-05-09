@@ -9,18 +9,25 @@ interface ImageCardProps {
   copiedId?: string | null;
   onCopy?: (e: React.MouseEvent, text: string, id: string) => void;
   index?: number;
+  aspectType?: 'vertical' | 'square' | 'horizontal';
 }
+
+const ASPECT_CLASS: Record<'vertical' | 'square' | 'horizontal', string> = {
+  vertical:   'aspect-[2/3]',
+  square:     'aspect-square',
+  horizontal: 'aspect-[4/3]',
+};
 
 /**
  * Shared image card used in both the Home gallery grid
  * and the Related Images section on the detail page.
  *
- * - aspect-[4/3] for uniform row-first grid
- * - Shimmer skeleton until image loads
- * - Hover overlay with Copy Prompt button
- * - Category badge top-left
+ * The OUTER card div carries the aspect-ratio so the grid
+ * cell is always perfectly filled. The link + image use
+ * absolute inset-0 so there are never any dark gaps,
+ * regardless of the row height the CSS grid assigns.
  */
-const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0 }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0, aspectType = 'square' }) => {
   const [loaded, setLoaded] = useState(false);
   const [localCopied, setLocalCopied] = useState(false);
 
@@ -41,28 +48,25 @@ const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0 
 
   return (
     <div
-      className="animate-fade-up relative group rounded-2xl overflow-hidden border border-border/40 bg-surface hover:border-accent/40 transition-all duration-300 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5"
+      className={`animate-fade-up relative group rounded-2xl overflow-hidden border border-border/40 bg-surface hover:border-accent/40 transition-all duration-300 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5 ${ASPECT_CLASS[aspectType]}`}
       style={{ '--card-delay': `${Math.min(index, 11) * 60}ms` } as React.CSSProperties}
     >
-
       {/* Shimmer until loaded */}
       {!loaded && (
         <div className="absolute inset-0 skeleton-shimmer" />
       )}
 
-      <Link to={`/image/${img.id}`} className="block">
-        {/* Fixed aspect ratio box */}
-        <div className="aspect-[4/3] overflow-hidden bg-surfaceHighlight">
-          <img
-            src={img.thumbnail || img.url}
-            alt={img.prompt}
-            loading="lazy"
-            onLoad={() => setLoaded(true)}
-            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
-              loaded ? 'opacity-100' : 'opacity-0'
-            }`}
-          />
-        </div>
+      {/* Link fills the entire card — no gaps possible */}
+      <Link to={`/image/${img.id}`} className="absolute inset-0 block">
+        <img
+          src={img.thumbnail || img.url}
+          alt={img.prompt}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
+            loaded ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
 
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex flex-col justify-end p-3.5">
@@ -93,7 +97,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0 
 
       {/* Category badge */}
       {img.category && (
-        <div className="absolute top-2.5 left-2.5 pointer-events-none">
+        <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/50 text-white backdrop-blur-sm border border-white/10">
             {img.category}
           </span>

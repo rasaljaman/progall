@@ -221,7 +221,10 @@ export class SupabaseService {
       tags: image.tags,
       is_featured: image.is_featured,
       url: finalUrl,
-      thumbnail: finalUrl
+      thumbnail: finalUrl,
+      editorial_summary: image.editorial_summary,
+      editorial_notes: image.editorial_notes,
+      editorial_tips: image.editorial_tips
     }).eq('id', image.id).select().single();
 
     if (error) throw error;

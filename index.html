@@ -131,36 +131,63 @@
 <body>
     <div id="root">
         <!-- SEO Fallback Content for Crawlers (Replaced by React on load) -->
-        <div style="padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;">
-            <h1>ProGall - The Premium AI Art Prompt Gallery</h1>
-            <p>Welcome to ProGall, the most comprehensive gallery of high-quality AI art prompts. Whether you are using
-                Midjourney, Stable Diffusion, DALL-E 3, or Google Gemini, finding the exact right prompt is the key to
-                creating stunning generative art. We curate thousands of the best prompts to help you overcome "blank
-                canvas syndrome".</p>
-            <h2>Mastering Midjourney and DALL-E 3</h2>
-            <p>Prompt engineering is an essential skill in the age of generative AI. On ProGall, you can browse images
-                by style—such as Cyberpunk, Anime, Photorealism, Cinematic, and Fantasy—and instantly see the exact text
-                used to generate them. We include all parameters, such as aspect ratios (--ar 16:9), model versions (--v
-                6.0), and stylize values, so you can perfectly replicate or remix the results.</p>
-            <h2>What Makes a Good AI Prompt?</h2>
-            <p>A high-quality prompt typically includes the main subject, environmental context, lighting conditions,
-                camera angles, and stylistic modifiers. For example, instead of just saying "a cat", a well-engineered
-                prompt might be: "A cinematic macro photograph of a majestic Maine Coon cat sitting on a neon-lit
-                cyberpunk street, dramatic rim lighting, 85mm lens, f/1.8, unreal engine 5 render, highly detailed."
-                Here on ProGall, we focus on clean, effective prompts that yield consistent results.</p>
-            <h2>Free and Open Source Inspiration</h2>
-            <p>We believe that creativity should not be locked behind a paywall. All prompts on ProGall are completely
-                free to use. There are no subscriptions required. Simply find an image you love, click "Copy Prompt",
-                and paste it into your favorite generative AI tool. Enhance your workflow today with the best prompts on
-                the web.</p>
+        <div style="padding: 20px; font-family: sans-serif; max-width: 900px; margin: 0 auto; line-height: 1.7;">
+            <h1>ProGall — The Premium AI Art Prompt Gallery</h1>
+            <p>Welcome to ProGall, the most comprehensive free gallery of high-quality AI art prompts on the internet. Whether you are using Midjourney, Stable Diffusion, DALL-E 3, or Google Gemini, finding the exact right prompt is the key to creating stunning generative art. We curate thousands of the best prompts to help you overcome "blank canvas syndrome" and start creating professionally from day one.</p>
+
+            <h2>What is an AI Art Prompt?</h2>
+            <p>An AI art prompt is a text description that instructs a generative AI model to create a specific image. The quality, structure, and vocabulary of the prompt directly determines the quality of the output. A beginner might type "a cat in a forest" — but a skilled prompt engineer writes something like: <em>"A majestic Maine Coon cat perched on a mossy rock in an ancient Celtic forest, golden hour lighting, volumetric god rays, macro 85mm lens, photorealistic, 8K resolution, cinematic depth of field."</em></p>
+            <p>The difference in output quality between these two prompts is staggering. ProGall is built to bridge that gap — by showing you the exact professional prompts behind real, high-quality AI-generated images, so you can learn by example and immediately apply those techniques to your own creative projects.</p>
+
+            <h2>Browse by Category</h2>
+            <p>ProGall organizes its growing library of prompts into clearly defined style categories, each tailored to a specific aesthetic and AI tool strength:</p>
             <ul>
-                <li>Extensive collection of curated prompts</li>
-                <li>Support for Midjourney, DALL-E 3, Stable Diffusion, and Gemini</li>
-                <li>Detailed breakdown of negative prompts and parameters</li>
-                <li>Free to use for commercial and personal projects</li>
+                <li><strong>Anime &amp; Manga</strong> — Character art, scene illustrations, and chibi designs. Best used with Midjourney --niji 6 or Stable Diffusion Anime checkpoints.</li>
+                <li><strong>Photorealistic</strong> — Hyper-detailed photography-style images. Works best with Midjourney v6 --style raw or DALL-E 3 for portraits.</li>
+                <li><strong>Cyberpunk &amp; Sci-Fi</strong> — Neon-lit urban environments, dystopian cityscapes, and futuristic technology. Midjourney excels here.</li>
+                <li><strong>Fantasy &amp; Epic Art</strong> — Dragons, enchanted forests, wizards, and mythological scenes. Industry-standard Midjourney prompts.</li>
+                <li><strong>Portrait &amp; Character</strong> — Detailed face renders, fashion photography, and character concept art.</li>
+                <li><strong>3D &amp; Render</strong> — Isometric art, product renders, and architectural visualizations.</li>
+                <li><strong>Watercolor &amp; Illustration</strong> — Soft, painterly styles for editorial and artistic work.</li>
+                <li><strong>Abstract &amp; Surreal</strong> — Dream-like compositions, impossible geometries, and experimental visuals.</li>
             </ul>
-            <p>Learn more on our <a href="/about">About Us</a> page or review our <a href="/privacy">Privacy Policy</a>
-                and <a href="/terms">Terms of Service</a>.</p>
+
+            <h2>Mastering Midjourney Parameters</h2>
+            <p>Midjourney is the most widely used AI image generator for professional-quality art, and understanding its parameter system is essential for getting consistent results. On ProGall, you will find prompts that demonstrate the most important Midjourney flags in context:</p>
+            <ul>
+                <li><strong>--ar (Aspect Ratio)</strong> — Controls the image dimensions. Use --ar 16:9 for widescreen, --ar 2:3 for portrait, --ar 1:1 for square.</li>
+                <li><strong>--v (Version)</strong> — Specifies the model version. --v 6 is the current standard for photorealism; --niji 6 for anime.</li>
+                <li><strong>--style raw</strong> — Reduces Midjourney's artistic interpretation for a more literal, photographic result. Essential for product photos and headshots.</li>
+                <li><strong>--q (Quality)</strong> — Higher values (--q 2) produce more detail at the cost of generation time.</li>
+                <li><strong>--no (Negative Prompt)</strong> — Excludes specific elements. E.g. --no watermark, blurry, text, low quality.</li>
+                <li><strong>--chaos</strong> — Adds variation to your results (0–100). High chaos values are useful for brainstorming diverse concepts quickly.</li>
+            </ul>
+
+            <h2>What Makes a Good AI Prompt?</h2>
+            <p>A high-quality prompt typically includes five components working together:</p>
+            <ol>
+                <li><strong>Primary Subject</strong> — The main focus of the image. Be specific: not "a woman" but "a 28-year-old archaeologist with sun-weathered skin and braided copper hair."</li>
+                <li><strong>Environment &amp; Context</strong> — Where is the subject? What surrounds it? E.g. "standing in a half-excavated Roman ruin at dusk."</li>
+                <li><strong>Lighting</strong> — This single element has the most impact on mood. Options: golden hour, blue hour, studio lighting, neon, candlelight, overcast diffused light.</li>
+                <li><strong>Camera &amp; Lens</strong> — Simulate photography: "shot on Canon EOS R5, 85mm f/1.4, bokeh background, shallow depth of field."</li>
+                <li><strong>Style &amp; Quality Modifiers</strong> — Define the artistic direction: "photorealistic, ultra-detailed, 8K, award-winning photography, National Geographic style."</li>
+            </ol>
+
+            <h2>DALL-E 3, Stable Diffusion &amp; Google Gemini</h2>
+            <p>While Midjourney is the most popular, ProGall prompts are tested across all major platforms. DALL-E 3 (available through ChatGPT and Microsoft Copilot) excels at following precise, literal descriptions and is ideal for product mockups and infographics. Stable Diffusion (SDXL) gives you the most fine-grained control through LoRA models, negative prompts, and the ability to run locally on your own hardware. Google Gemini offers the fastest iteration cycle and integrates directly with Google's ecosystem — paste any ProGall prompt directly into Gemini to generate and refine instantly.</p>
+
+            <h2>Free and Open Access</h2>
+            <p>We believe that creativity should not be locked behind a paywall. All prompts on ProGall are completely free to use in your commercial or personal projects — no subscription required. Simply find an image you love, click "Copy Prompt", and paste it into your favorite generative AI tool. Start with one of our prompts as a foundation, then iterate and personalise it to match your unique creative vision.</p>
+
+            <ul>
+                <li>Thousands of curated, tested AI art prompts</li>
+                <li>Support for Midjourney, DALL-E 3, Stable Diffusion, and Google Gemini</li>
+                <li>Detailed per-image engineering breakdown and tips</li>
+                <li>AI tool compatibility scores per style category</li>
+                <li>Free to use for commercial and personal projects</li>
+                <li>No sign-up or subscription required</li>
+            </ul>
+            <p>Learn more about our mission on our <a href="/about">About Us</a> page, explore our <a href="/blog">AI Prompt Engineering Blog</a>, or check our <a href="/faq">FAQ</a> for common questions. Review our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a> for usage details.</p>
         </div>
     </div>
     <script type="module" src="/index.tsx"></script>

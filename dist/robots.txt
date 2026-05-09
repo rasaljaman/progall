@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /admin/dashboard
+Disallow: /admin/analytics
+Disallow: /admin/generator
 
 Sitemap: https://progall.tech/sitemap.xml

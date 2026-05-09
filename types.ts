@@ -10,6 +10,9 @@ export interface ImageItem {
   created_at?: string;
   is_featured?: boolean;
   created_by?: string;
+  editorial_summary?: string;
+  editorial_notes?: string;
+  editorial_tips?: string;
   downloads_count?: number;
   copies_count?: number;
   views_count?: number;

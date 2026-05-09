@@ -68,49 +68,181 @@ const TABS: Tab[] = [
   { id: 'category', label: 'Same Category', icon: <Grid3x3 size={15} />,  description: 'Browse category' },
 ];
 
+// ── AI Tool Compatibility Data ─────────────────────────────────────────────
+const AI_TOOL_COMPAT: Record<string, { tool: string; score: number; note: string }[]> = {
+  default: [
+    { tool: 'Midjourney v6',    score: 95, note: 'Excellent. Handles complex multi-element prompts natively.' },
+    { tool: 'DALL-E 3',         score: 88, note: 'Very good. Uses natural language; slightly less precise with camera terms.' },
+    { tool: 'Stable Diffusion', score: 82, note: 'Good. Use with SDXL; may need negative prompts for best results.' },
+    { tool: 'Google Gemini',    score: 79, note: 'Good for quick iteration; excels at photorealistic styles.' },
+  ],
+  Anime: [
+    { tool: 'Midjourney v6',    score: 97, note: 'Best-in-class for anime. Use --niji 6 flag for optimal results.' },
+    { tool: 'Stable Diffusion', score: 95, note: 'Excellent with Anime-specific checkpoints like AnythingV5 or Counterfeit.' },
+    { tool: 'DALL-E 3',         score: 75, note: 'Decent but may over-westernize anime character features.' },
+    { tool: 'Google Gemini',    score: 70, note: 'Basic anime support; better for stylised illustration.' },
+  ],
+  Photorealistic: [
+    { tool: 'Midjourney v6',    score: 94, note: 'Outstanding realism in v6. Add --style raw for photography look.' },
+    { tool: 'DALL-E 3',         score: 91, note: 'Top-tier for photorealism; excellent skin textures and lighting.' },
+    { tool: 'Google Gemini',    score: 89, note: 'Gemini Imagen excels at photorealistic portraits and scenes.' },
+    { tool: 'Stable Diffusion', score: 85, note: 'Use Realistic Vision or DreamShaper checkpoint for best results.' },
+  ],
+  Cyberpunk: [
+    { tool: 'Midjourney v6',    score: 96, note: 'Exceptional neon and urban atmosphere rendering.' },
+    { tool: 'Stable Diffusion', score: 90, note: 'Great control over neon colors and gritty textures with SDXL.' },
+    { tool: 'DALL-E 3',         score: 83, note: 'Strong composition but slightly less gritty than Midjourney.' },
+    { tool: 'Google Gemini',    score: 78, note: 'Competent; best used for broader cyberpunk scene concepts.' },
+  ],
+  Fantasy: [
+    { tool: 'Midjourney v6',    score: 97, note: 'Industry standard for fantasy art. Stunning lighting and detail.' },
+    { tool: 'Stable Diffusion', score: 88, note: 'Great with fantasy-tuned LoRAs and DreamShaper checkpoint.' },
+    { tool: 'DALL-E 3',         score: 85, note: 'Good narrative understanding; great for illustrated storybook style.' },
+    { tool: 'Google Gemini',    score: 80, note: 'Solid for epic landscapes; less control over fine character detail.' },
+  ],
+  Portrait: [
+    { tool: 'Midjourney v6',    score: 96, note: 'Exceptional facial detail and lighting control in portrait mode.' },
+    { tool: 'DALL-E 3',         score: 92, note: 'Very natural-looking portraits; excellent for professional headshots.' },
+    { tool: 'Stable Diffusion', score: 88, note: 'Use portrait-specific LoRAs for best facial coherence.' },
+    { tool: 'Google Gemini',    score: 84, note: 'Strong for stylized portraits; occasional detail inconsistency.' },
+  ],
+};
+
+const getToolCompat = (category: string) =>
+  AI_TOOL_COMPAT[category] ?? AI_TOOL_COMPAT.default;
+
 // ── Prompt Analysis Component ──────────────────────────────────────────────
 const PromptBreakdown: React.FC<{ prompt: string, category: string }> = ({ prompt, category }) => {
   const parts = prompt.split(',').map(s => s.trim()).filter(Boolean);
   const subject = parts[0] || 'the main subject';
   const styleElements = parts.slice(1);
-  
+  const wordCount = prompt.split(' ').length;
+  const toolCompat = getToolCompat(category);
+
+  const aspectRatioTip =
+    category === 'Portrait' ? '2:3 portrait ratio (--ar 2:3 in Midjourney) works best — keeps the face centered.' :
+    category === 'Landscape' || category === 'Fantasy' ? '16:9 or 21:9 for cinematic widescreen (--ar 16:9). Great for wallpapers and covers.' :
+    category === 'Anime' ? '2:3 for character art or 16:9 for scene illustrations.' :
+    '1:1 for social media posts, 16:9 for desktop wallpapers, 2:3 for posters.';
+
   return (
-    <div className="mt-10 mb-8 pt-8 border-t border-border/40">
-      <h3 className="text-xl font-bold text-textPrimary mb-4">Prompt Analysis & Engineering Guide</h3>
-      
-      <div className="space-y-4 text-textSecondary text-sm leading-relaxed">
-        <p>
-          Creating high-quality {category} AI art requires specific vocabulary and structural prompting. When analyzing this prompt, we can break it down into its core functional components to understand why the generative AI model produces such a refined output.
+    <div className="mt-10 mb-8 pt-8 border-t border-border/40 space-y-5">
+      <h3 className="text-xl font-bold text-textPrimary">Prompt Engineering Deep-Dive</h3>
+
+      {/* Intro */}
+      <p className="text-sm text-textSecondary leading-relaxed">
+        Creating high-quality <strong className="text-textPrimary">{category}</strong> AI art requires precise vocabulary and a structured approach. This prompt contains <strong className="text-textPrimary">{wordCount} words</strong> across <strong className="text-textPrimary">{parts.length} modifier segments</strong> — each serving a specific function in guiding the neural network toward a consistent, professional output.
+      </p>
+
+      {/* 1. Core Subject */}
+      <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50">
+        <h4 className="font-semibold text-textPrimary text-base mb-2">① Core Subject & Anchoring</h4>
+        <p className="text-sm text-textSecondary leading-relaxed">
+          The foundation of this generation is the opening declaration: <strong className="text-textPrimary">"{subject.length > 70 ? subject.substring(0, 70) + '...' : subject}"</strong>. Placing the primary subject at the very start assigns it the highest <em>attention weight</em> in the transformer model. This ensures the subject remains the focal point before any stylistic filters are applied — a fundamental rule of effective prompt structure across all major AI platforms.
         </p>
-        
-        <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50 my-5">
-          <h4 className="font-semibold text-textPrimary text-base mb-2">1. Core Subject & Action</h4>
-          <p>
-            The foundation of this generation relies on the opening declaration: <strong>"{subject.length > 60 ? subject.substring(0,60) + '...' : subject}"</strong>. By placing this at the very beginning of the prompt, we instruct the neural network to prioritize this element with the highest attention weight. This ensures the primary subject remains the focal point of the composition before any stylistic filters are applied.
+      </div>
+
+      {/* 2. Style Modifiers */}
+      {styleElements.length > 0 && (
+        <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50">
+          <h4 className="font-semibold text-textPrimary text-base mb-3">② Stylization & Atmosphere Modifiers</h4>
+          <p className="text-sm text-textSecondary leading-relaxed mb-3">
+            The following modifier tags push the model away from generic aesthetics toward a specific visual language:
+          </p>
+          <ul className="space-y-1.5 mb-3">
+            {styleElements.slice(0, 5).map((style, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <span className="text-accent font-bold mt-0.5 shrink-0">›</span>
+                <span className="text-textSecondary"><strong className="text-textPrimary">{style}</strong> — conditioning parameter shaping color, texture, or compositional output.</span>
+              </li>
+            ))}
+          </ul>
+          {styleElements.length > 5 && (
+            <p className="text-xs text-textSecondary/70 mb-3">+ {styleElements.length - 5} more modifiers in the full prompt above.</p>
+          )}
+          <p className="text-sm text-textSecondary leading-relaxed">
+            Lighting keywords (e.g. <em>cinematic</em>, <em>volumetric</em>, <em>rim lighting</em>) override the AI's default flat illumination. Camera and medium parameters simulate specific lenses or artistic styles, producing a far more professional result than generic text alone.
           </p>
         </div>
+      )}
 
-        {styleElements.length > 0 && (
-          <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50 my-5">
-            <h4 className="font-semibold text-textPrimary text-base mb-2">2. Stylization & Environment</h4>
-            <p>
-              To push the model away from generic aesthetics, this prompt utilizes a specific set of modifier tags: 
-            </p>
-            <ul className="list-disc pl-5 mt-2 space-y-1">
-              {styleElements.slice(0, 4).map((style, i) => (
-                <li key={i}><strong>{style}</strong></li>
-              ))}
-            </ul>
-            <p className="mt-3">
-              These keywords act as conditioning parameters. Words related to lighting (like cinematic, ambient, or volumetric) override the AI's default flat lighting. Structural parameters tell the model to simulate specific camera lenses or art mediums, resulting in a significantly more professional aesthetic compared to basic text inputs.
-            </p>
-          </div>
-        )}
+      {/* 3. How to Use */}
+      <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50">
+        <h4 className="font-semibold text-textPrimary text-base mb-3">③ How to Use This Prompt in Your {category} Projects</h4>
+        <ol className="space-y-3">
+          {[
+            {
+              step: '1',
+              title: 'Copy the full prompt',
+              desc: 'Use the Copy Prompt button above to copy the complete text including all modifiers. Do not truncate — every comma-separated element contributes to the final output quality.',
+            },
+            {
+              step: '2',
+              title: 'Paste into your AI tool of choice',
+              desc: 'For Midjourney: paste after /imagine. For DALL-E 3: paste directly into the prompt box. For Stable Diffusion: paste into the positive prompt field in Automatic1111 or ComfyUI.',
+            },
+            {
+              step: '3',
+              title: 'Remix by swapping the subject (optional)',
+              desc: `To adapt this ${category} prompt for your own project, replace only the first segment — "${subject.substring(0, 45)}${subject.length > 45 ? '...' : ''}" — with your desired subject. Keep all lighting and style modifiers intact for a consistent aesthetic.`,
+            },
+            {
+              step: '4',
+              title: 'Iterate and refine',
+              desc: 'AI generation is probabilistic — run the prompt 3–5 times and select the best result. Use the Troubleshooting section below if results differ from the example image.',
+            },
+          ].map(item => (
+            <li key={item.step} className="flex gap-3">
+              <span className="text-accent font-extrabold text-base leading-none mt-0.5 w-5 shrink-0">{item.step}.</span>
+              <div>
+                <p className="text-sm font-semibold text-textPrimary mb-0.5">{item.title}</p>
+                <p className="text-sm text-textSecondary leading-relaxed">{item.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
 
-        <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50 my-5">
-          <h4 className="font-semibold text-textPrimary text-base mb-2">How to Adapt this Prompt</h4>
+      {/* 4. AI Tool Compatibility */}
+      <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50">
+        <h4 className="font-semibold text-textPrimary text-base mb-1">④ AI Tool Compatibility — {category} Style</h4>
+        <p className="text-sm text-textSecondary mb-4">
+          Not all AI generators handle every style equally. Here's how this {category} prompt is expected to perform across major platforms:
+        </p>
+        <div className="space-y-3">
+          {toolCompat.map(({ tool, score, note }) => (
+            <div key={tool}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-textPrimary">{tool}</span>
+                <span className="text-xs font-bold text-accent">{score}%</span>
+              </div>
+              <div className="w-full bg-border/40 rounded-full h-1.5 mb-1">
+                <div
+                  className="h-1.5 rounded-full bg-gradient-to-r from-accent to-teal-400"
+                  style={{ width: `${score}%` }}
+                />
+              </div>
+              <p className="text-xs text-textSecondary/80">{note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. Advanced Tips */}
+      <div className="bg-surfaceHighlight p-4 rounded-xl border border-border/50">
+        <h4 className="font-semibold text-textPrimary text-base mb-3">⑤ Advanced Prompt Engineering Tips</h4>
+        <div className="space-y-3 text-sm text-textSecondary">
           <p>
-            Prompt engineering is highly iterative. To adapt this {category} prompt for your own project while retaining its high-quality aesthetic, try replacing only the first segment with your desired character, object, or scene. Keep the subsequent lighting and styling keywords intact. This technique allows you to rapidly generate diverse assets—from concept art to marketing materials—while maintaining a consistent, unified visual language across all your generations.
+            <strong className="text-textPrimary">Negative prompts:</strong> In Stable Diffusion and with Midjourney's --no flag, adding exclusions like <em>blurry, watermark, low quality, deformed hands, extra fingers</em> significantly improves output consistency. Pair this prompt with a strong negative prompt for best results.
+          </p>
+          <p>
+            <strong className="text-textPrimary">Aspect ratio:</strong> {aspectRatioTip} Experiment freely — the same prompt at different ratios can feel like a completely different piece.
+          </p>
+          <p>
+            <strong className="text-textPrimary">Seed locking:</strong> Once you find a generation you love, note the seed number (visible in Midjourney's image metadata or the Stable Diffusion UI). Re-using the same seed with minor prompt edits lets you create a consistent character or scene series — invaluable for professional creative projects and brand consistency.
+          </p>
+          <p>
+            <strong className="text-textPrimary">Iterative refinement:</strong> The most effective AI artists treat each prompt as a hypothesis. Change one element at a time, observe the effect on the output, and build a mental model of how that AI interprets specific keywords. ProGall's gallery is designed to give you hundreds of proven starting points for exactly this iterative discovery process.
           </p>
         </div>
       </div>
@@ -359,13 +491,29 @@ const ImageDetail: React.FC = () => {
   if (!image) return null;
 
   const activeTabMeta = TABS.find(t => t.id === activeTab)!;
+  const seoDescription = image.editorial_summary?.trim() || `Explore this curated ${image.category} AI art prompt. Copy the exact text to recreate or remix this image in Midjourney, DALL-E 3, Stable Diffusion, or Google Gemini.`;
+  const hasEditorial = Boolean(
+    image.editorial_summary || image.editorial_notes || image.editorial_tips
+  );
+  const renderEditorialText = (text?: string) => {
+    if (!text) return null;
+    return text
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map((line, idx) => (
+        <p key={idx} className="text-sm text-textSecondary leading-relaxed">
+          {line}
+        </p>
+      ));
+  };
 
   return (
     <div className="min-h-screen pb-20 pt-28 md:pt-32 bg-background text-textPrimary page-enter">
 
       <SEO
-        title={image.prompt.substring(0, 50)}
-        description={`Download high-quality ${image.category} AI art.`}
+        title={`${image.category} AI Art Prompt: ${image.prompt.substring(0, 45)}...`}
+        description={seoDescription}
         image={image.url}
         url={`https://progall.tech/image/${image.id}`}
         type="article"
@@ -469,26 +617,39 @@ const ImageDetail: React.FC = () => {
               </p>
             </div>
 
-            {/* Action buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Action buttons — primary CTAs are Remix & Copy Prompt */}
+            <div className="space-y-3">
               <button
                 onClick={handleGeminiRemix}
-                className="col-span-2 py-3.5 bg-gradient-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-accent hover:opacity-90 transition-all hover:shadow-glow active:scale-[0.98]"
+                className="w-full py-3.5 bg-gradient-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-accent hover:opacity-90 transition-all hover:shadow-glow active:scale-[0.98]"
               >
                 <Sparkles size={18} /> Remix on Gemini
               </button>
-              <button onClick={handleDownload} className="py-3 bg-surfaceHighlight border border-border rounded-xl text-textPrimary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-border transition-colors">
-                <Download size={16} /> Download
-              </button>
-              <button onClick={handleShare} className="py-3 bg-surfaceHighlight border border-border rounded-xl text-textPrimary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-border transition-colors">
-                <Share2 size={16} /> Share Link
-              </button>
-              <button onClick={handleWhatsApp} className="py-3 bg-[#25D366]/10 border border-[#25D366]/25 text-[#25D366] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#25D366]/20 transition-colors">
-                <WhatsAppIcon /> WhatsApp
-              </button>
-              <button onClick={handlePinterest} className="py-3 bg-[#E60023]/10 border border-[#E60023]/25 text-[#E60023] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#E60023]/20 transition-colors">
-                <PinterestIcon /> Pin It
-              </button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={handleCopy} className="py-3 bg-surfaceHighlight border border-border rounded-xl text-textPrimary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-border transition-colors">
+                  <Copy size={16} /> Copy Prompt
+                </button>
+                <button onClick={handleShare} className="py-3 bg-surfaceHighlight border border-border rounded-xl text-textPrimary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-border transition-colors">
+                  <Share2 size={16} /> Share Link
+                </button>
+                <button onClick={handleWhatsApp} className="py-3 bg-[#25D366]/10 border border-[#25D366]/25 text-[#25D366] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#25D366]/20 transition-colors">
+                  <WhatsAppIcon /> WhatsApp
+                </button>
+                <button onClick={handlePinterest} className="py-3 bg-[#E60023]/10 border border-[#E60023]/25 text-[#E60023] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#E60023]/20 transition-colors">
+                  <PinterestIcon /> Pin It
+                </button>
+              </div>
+
+              {/* Save image — kept discreet; not a primary CTA */}
+              <div className="flex justify-center pt-1">
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1.5 text-xs text-textSecondary hover:text-textPrimary transition-colors py-1 px-3 rounded-lg hover:bg-surfaceHighlight"
+                >
+                  <Download size={12} /> Save image to device
+                </button>
+              </div>
             </div>
 
             {/* Tags with show more/less */}
@@ -511,6 +672,31 @@ const ImageDetail: React.FC = () => {
                       : <><ChevronDown size={13} /> +{image.tags.length - 5} more tags</>
                     }
                   </button>
+                )}
+              </div>
+            )}
+
+            {hasEditorial && (
+              <div className="rounded-2xl border border-border/50 bg-surfaceHighlight/60 p-5 space-y-4">
+                <div>
+                  <p className="text-xs font-bold text-textSecondary uppercase tracking-wider">Curator Notes</p>
+                  {image.editorial_summary && (
+                    <p className="text-base font-semibold text-textPrimary mt-2">
+                      {image.editorial_summary}
+                    </p>
+                  )}
+                </div>
+                {image.editorial_notes && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-textSecondary uppercase tracking-wider">Why this prompt works</p>
+                    {renderEditorialText(image.editorial_notes)}
+                  </div>
+                )}
+                {image.editorial_tips && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-textSecondary uppercase tracking-wider">Usage tips</p>
+                    {renderEditorialText(image.editorial_tips)}
+                  </div>
                 )}
               </div>
             )}

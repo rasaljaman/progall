@@ -127,6 +127,37 @@ const EditImageModal: React.FC<EditImageModalProps> = ({ image, isOpen, onClose,
                 />
             </div>
 
+            {/* Editorial Fields */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-textSecondary uppercase tracking-wider mb-2">Editorial Summary</label>
+                <textarea
+                  value={formData.editorial_summary || ''}
+                  onChange={(e) => setFormData({ ...formData, editorial_summary: e.target.value })}
+                  className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-20 leading-relaxed"
+                  placeholder="Short, unique summary for this image..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-textSecondary uppercase tracking-wider mb-2">Curator Notes</label>
+                <textarea
+                  value={formData.editorial_notes || ''}
+                  onChange={(e) => setFormData({ ...formData, editorial_notes: e.target.value })}
+                  className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-28 leading-relaxed"
+                  placeholder="What makes this prompt work? Explain the key choices..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-textSecondary uppercase tracking-wider mb-2">Usage Tips</label>
+                <textarea
+                  value={formData.editorial_tips || ''}
+                  onChange={(e) => setFormData({ ...formData, editorial_tips: e.target.value })}
+                  className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-24 leading-relaxed"
+                  placeholder="How to remix or adapt this prompt..."
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                 {/* Category */}
                 <div>
