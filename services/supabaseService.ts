@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { ImageItem, AuditLog, BlogPost } from '../types';
+import { ImageItem, AuditLog, BlogPost, TwitterPrompt } from '../types';
 import imageCompression from 'browser-image-compression'; // Phase 4: Compression
 
 // Initialize the client
@@ -114,6 +114,28 @@ export class SupabaseService {
 
     if (error) return undefined;
     return data as ImageItem;
+  }
+
+  // --- Twitter Prompts ---
+  async getTwitterPrompts(): Promise<TwitterPrompt[]> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .order('tweeted_at', { ascending: false });
+
+    if (error) throw error;
+    return data as TwitterPrompt[];
+  }
+
+  async getTwitterPromptById(id: string): Promise<TwitterPrompt | undefined> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) return undefined;
+    return data as TwitterPrompt;
   }
 
   // --- LOGS: List View (Limit 50) ---

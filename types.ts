@@ -51,3 +51,18 @@ export interface DashboardStats {
   myUploads: number;
   totalLogs: number;
 }
+
+export interface TwitterPrompt {
+  id: string;
+  author: string;
+  handle: string;
+  prompt_text: string;
+  image_urls: string[];
+  model: string;
+  likes: number;
+  views: number;
+  tweet_url: string;
+  tweeted_at: string;
+  created_at?: string;
+}
+

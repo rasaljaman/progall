@@ -17,6 +17,7 @@ import FAQ from './pages/FAQ';
 import AnalyticsPage from './pages/AnalyticsPage';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
+import PromptDetail from './pages/PromptDetail';
 
 import Snowfall from './components/Christmas/Snowfall';
 import HolidayGift from './components/Christmas/HolidayGift';
@@ -152,6 +153,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/image/:id" element={<ImageDetail />} />
+            <Route path="/prompt/:id" element={<PromptDetail />} />
 
             <Route path="/terms"   element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />

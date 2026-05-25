@@ -7,8 +7,9 @@ import { supabaseService } from '../services/supabaseService';
 import { ImageItem } from '../types';
 import {
   Search, X, ChevronDown, ChevronUp,
-  Sparkles, BookOpen, Zap
+  Sparkles, BookOpen, Zap, Twitter
 } from 'lucide-react';
+import TwitterPromptGallery from '../components/TwitterPromptGallery';
 
 // ---------------------------------------------------------------------------
 // Home page — uniform aspect ratio grid, no gaps, newest-first, row-fill
@@ -208,6 +209,22 @@ const Home: React.FC = () => {
           </>
         )}
       </main>
+
+      {/* ── Twitter Community Gallery (Feature Flagged) ── */}
+      {import.meta.env.VITE_SHOW_TWITTER_GALLERY === 'true' && (
+        <div className="max-w-7xl mx-auto px-4 mt-16 animate-fade-up">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-[#1DA1F2]/10 w-11 h-11 rounded-xl flex items-center justify-center text-[#1DA1F2] dark:text-[#38A1F3]">
+              <Twitter size={22} className="fill-current" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-textPrimary">Twitter Community Prompts</h2>
+              <p className="text-sm text-textSecondary">Real-time prompt engineering sourced from #GPTImage2 on X</p>
+            </div>
+          </div>
+          <TwitterPromptGallery />
+        </div>
+      )}
 
       {/* ── Content Footer ── */}
       <section className="bg-surface border-t border-border/40 mt-16 py-14 px-6">
