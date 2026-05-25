@@ -57,7 +57,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0,
       )}
 
       {/* Link fills the entire card — no gaps possible */}
-      <Link to={`/image/${img.id}`} className="absolute inset-0 block">
+      <Link to={(img as any).is_twitter ? `/prompt/${img.id}` : `/image/${img.id}`} className="absolute inset-0 block">
         <img
           src={img.thumbnail || img.url}
           alt={img.prompt}

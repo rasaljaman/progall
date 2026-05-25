@@ -17,8 +17,23 @@ import TwitterPromptGallery from '../components/TwitterPromptGallery';
 const INITIAL_SLOTS = 32;   // 4 cols × 8 rows
 const LOAD_MORE_SLOTS = 16; // 4 cols × 4 rows
 
+interface UnifiedPrompt {
+  id: string;
+  url: string;
+  thumbnail: string;
+  prompt: string;
+  category: string;
+  tags: string[];
+  likes: number;
+  views: number;
+  is_twitter: boolean;
+  author?: string;
+  handle?: string;
+  created_at: string;
+}
+
 const Home: React.FC = () => {
-  const [images,    setImages]    = useState<ImageItem[]>([]);
+  const [images,    setImages]    = useState<UnifiedPrompt[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [inputValue,       setInputValue]       = useState('');
   const [debouncedQuery,   setDebouncedQuery]   = useState('');
@@ -30,26 +45,62 @@ const Home: React.FC = () => {
 
   // ── FETCH ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const fetchImages = async () => {
+    const fetchAllPrompts = async () => {
       setLoading(true);
       try {
-        const data = await supabaseService.getImages();
-        setImages(data);
-        if (data.length > 0) {
+        const [galleryData, twitterData] = await Promise.all([
+          supabaseService.getImages(),
+          supabaseService.getTwitterPrompts()
+        ]);
+
+        const mappedGallery: UnifiedPrompt[] = galleryData.map(img => ({
+          id: img.id,
+          url: img.url,
+          thumbnail: img.thumbnail || img.url,
+          prompt: img.prompt,
+          category: img.category || 'Gallery',
+          tags: img.tags || [],
+          likes: img.copies_count || img.downloads_count || 0,
+          views: img.views_count || 0,
+          is_twitter: false,
+          created_at: img.created_at || new Date().toISOString()
+        }));
+
+        const mappedTwitter: UnifiedPrompt[] = twitterData.map(item => ({
+          id: item.id,
+          url: item.image_urls?.[0] || '',
+          thumbnail: item.image_urls?.[0] || '',
+          prompt: item.prompt_text,
+          category: item.model || 'Twitter',
+          tags: [],
+          likes: item.likes || 0,
+          views: item.views || 0,
+          is_twitter: true,
+          author: item.author,
+          handle: item.handle,
+          created_at: item.tweeted_at || item.created_at || new Date().toISOString()
+        }));
+
+        const combined = [...mappedGallery, ...mappedTwitter]
+          .sort((a, b) => b.likes - a.likes);
+
+        setImages(combined);
+
+        if (combined.length > 0) {
           const catCounts: Record<string, number> = {};
-          data.forEach(img => { catCounts[img.category] = (catCounts[img.category] || 0) + 1; });
+          combined.forEach(img => { catCounts[img.category] = (catCounts[img.category] || 0) + 1; });
           const sorted = Object.entries(catCounts)
             .sort(([, a], [, b]) => b - a)
             .map(([name, count]) => ({ name, count }));
-          setDynamicCategories([{ name: 'All', count: data.length }, ...sorted]);
+          setDynamicCategories([{ name: 'All', count: combined.length }, ...sorted]);
         }
       } catch (err) {
-        console.error('Error fetching images:', err);
+        console.error('Error fetching prompts:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchImages();
+    fetchAllPrompts();
   }, []);
 
   // ── DEBOUNCED SEARCH ──────────────────────────────────────────────────────
@@ -178,7 +229,7 @@ const Home: React.FC = () => {
               {visibleImages.map((img, idx) => (
                 <ImageCard
                   key={img.id}
-                  img={img}
+                  img={img as any}
                   copiedId={copiedId}
                   onCopy={handleCopy}
                   index={idx}
@@ -210,21 +261,7 @@ const Home: React.FC = () => {
         )}
       </main>
 
-      {/* ── Twitter Community Gallery (Feature Flagged) ── */}
-      {import.meta.env.VITE_SHOW_TWITTER_GALLERY === 'true' && (
-        <div className="max-w-7xl mx-auto px-4 mt-16 animate-fade-up">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-[#1DA1F2]/10 w-11 h-11 rounded-xl flex items-center justify-center text-[#1DA1F2] dark:text-[#38A1F3]">
-              <Twitter size={22} className="fill-current" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-textPrimary">Twitter Community Prompts</h2>
-              <p className="text-sm text-textSecondary">Real-time prompt engineering sourced from #GPTImage2 on X</p>
-            </div>
-          </div>
-          <TwitterPromptGallery />
-        </div>
-      )}
+
 
       {/* ── Content Footer ── */}
       <section className="bg-surface border-t border-border/40 mt-16 py-14 px-6">
