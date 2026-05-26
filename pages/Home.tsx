@@ -49,10 +49,20 @@ const Home: React.FC = () => {
     const fetchAllPrompts = async () => {
       setLoading(true);
       try {
-        const [galleryData, twitterData] = await Promise.all([
-          supabaseService.getImages(),
-          supabaseService.getTwitterPrompts()
-        ]);
+        let galleryData: any[] = [];
+        let twitterData: any[] = [];
+
+        try {
+          galleryData = await supabaseService.getImages();
+        } catch (err) {
+          console.error('Error fetching gallery images:', err);
+        }
+
+        try {
+          twitterData = await supabaseService.getTwitterPrompts();
+        } catch (err) {
+          console.error('Error fetching Twitter prompts:', err);
+        }
 
         const mappedGallery: UnifiedPrompt[] = galleryData.map(img => ({
           id: img.id,
