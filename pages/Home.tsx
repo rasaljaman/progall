@@ -30,6 +30,7 @@ interface UnifiedPrompt {
   author?: string;
   handle?: string;
   created_at: string;
+  downloads_count?: number;
 }
 
 const Home: React.FC = () => {
@@ -63,7 +64,8 @@ const Home: React.FC = () => {
           likes: img.copies_count || img.downloads_count || 0,
           views: img.views_count || 0,
           is_twitter: false,
-          created_at: img.created_at || new Date().toISOString()
+          created_at: img.created_at || new Date().toISOString(),
+          downloads_count: img.downloads_count
         }));
 
         const mappedTwitter: UnifiedPrompt[] = twitterData.map(item => ({

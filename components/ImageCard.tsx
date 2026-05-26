@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, Check, Download } from 'lucide-react';
+import { Copy, Check, Download, Heart } from 'lucide-react';
 import { ImageItem } from '../types';
 import { supabaseService } from '../services/supabaseService';
 
@@ -85,11 +85,18 @@ const ImageCard: React.FC<ImageCardProps> = ({ img, copiedId, onCopy, index = 0,
               {isCopied ? <Check size={14} /> : <Copy size={14} />}
               {isCopied ? 'Copied!' : 'Copy Prompt'}
             </button>
-            {!!img.downloads_count && (
+            {(img as any).is_twitter ? (
               <div className="flex flex-col items-center text-white/80 text-[10px] gap-0.5 drop-shadow">
-                <Download size={13} />
-                <span>{img.downloads_count}</span>
+                <Heart size={13} className="fill-white/20 text-white" />
+                <span>{(img as any).likes || 0}</span>
               </div>
+            ) : (
+              !!img.downloads_count && (
+                <div className="flex flex-col items-center text-white/80 text-[10px] gap-0.5 drop-shadow">
+                  <Download size={13} />
+                  <span>{img.downloads_count}</span>
+                </div>
+              )
             )}
           </div>
         </div>
