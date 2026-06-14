@@ -50,12 +50,14 @@ jobs:
           REDDIT_USERNAME:      ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD:      ${{ secrets.REDDIT_PASSWORD }}
 
-          # AI Services
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          HF_TOKEN:       ${{ secrets.HF_TOKEN }}
+          # AI Services (using VITE_ prefix to match saved secret names)
+          GEMINI_API_KEY:      ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          HF_TOKEN:            ${{ secrets.VITE_HF_TOKEN }}
+          VITE_HF_TOKEN:       ${{ secrets.VITE_HF_TOKEN }}
 
           # Supabase
-          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL:         ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
           # Runtime config

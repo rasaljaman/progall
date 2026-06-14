@@ -1,24 +1,28 @@
 /**
- * ProGall Auto-Pipeline
- * =====================
- * Discovers trending AI art prompt posts from Reddit,
- * enhances them with Gemini 2.0 Flash, generates a real image
- * using HuggingFace FLUX.1-schnell (free), then uploads
- * everything into the main Supabase `images` table.
+ * ProGall Auto-Pipeline v2
+ * ========================
+ * Sources (in priority order):
+ *  1. Civitai.com  — public AI art API, no auth needed ✅ WORKS NOW
+ *  2. Reddit       — requires OAuth approval (add creds when approved)
+ *
+ * For each discovered item:
+ *  → Gemini 2.0 Flash  — enhance prompt + categorise + add tags
+ *  → Download real image from Civitai CDN → upload to Supabase Storage
+ *  → Insert row into public.images table (appears in gallery immediately)
  *
  * Usage:
  *   node scripts/auto-pipeline.mjs
  *   DRY_RUN=true node scripts/auto-pipeline.mjs
  *
- * Required environment variables:
- *   REDDIT_CLIENT_ID       — Reddit OAuth app client ID
- *   REDDIT_CLIENT_SECRET   — Reddit OAuth app client secret
- *   REDDIT_USERNAME        — Your Reddit account username
- *   REDDIT_PASSWORD        — Your Reddit account password
- *   GEMINI_API_KEY         — Google AI Studio / VITE_GEMINI_API_KEY
- *   HF_TOKEN               — HuggingFace user access token
+ * Env vars:
+ *   GEMINI_API_KEY         — Google AI Studio key (get free at aistudio.google.com)
+ *   HF_TOKEN               — HuggingFace token (fallback image generation)
  *   SUPABASE_URL           — Supabase project URL
- *   SUPABASE_SERVICE_KEY   — Supabase service role key
+ *   SUPABASE_SERVICE_KEY   — Supabase service_role key
+ *   REDDIT_CLIENT_ID       — (optional) after Reddit API approval
+ *   REDDIT_CLIENT_SECRET   — (optional) after Reddit API approval
+ *   REDDIT_USERNAME        — (optional)
+ *   REDDIT_PASSWORD        — (optional)
  */
 
 import fs from 'node:fs';
@@ -26,257 +30,315 @@ import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 0.  LOAD .env (for local development)
+// 0.  LOAD .env  (local development)
 // ─────────────────────────────────────────────────────────────────────────────
 const envPath = path.resolve(process.cwd(), '.env');
 if (fs.existsSync(envPath)) {
-  const content = fs.readFileSync(envPath, 'utf8');
-  content.split(/\r?\n/).forEach(line => {
-    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?$/);
-    if (match) {
-      const key = match[1];
-      let value = (match[2] || '').trim();
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-      if (!process.env[key]) process.env[key] = value;
+  fs.readFileSync(envPath, 'utf8').split(/\r?\n/).forEach(line => {
+    const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?$/);
+    if (m) {
+      let v = (m[2] || '').trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
+        v = v.slice(1, -1);
+      if (!process.env[m[1]]) process.env[m[1]] = v;
     }
   });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1.  CONFIGURATION
+// 1.  CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
-const DRY_RUN   = process.env.DRY_RUN === 'true';
-const MAX_POSTS = parseInt(process.env.MAX_POSTS || '8', 10);   // posts per run
-const MIN_SCORE = parseInt(process.env.MIN_SCORE || '30', 10);  // minimum upvotes
+const DRY_RUN   = process.env.DRY_RUN   === 'true';
+const MAX_POSTS = parseInt(process.env.MAX_POSTS  || '8',  10);
+const MIN_SCORE = parseInt(process.env.MIN_SCORE  || '30', 10);
 
+const GEMINI_API_KEY       = process.env.GEMINI_API_KEY       || process.env.VITE_GEMINI_API_KEY || '';
+const HF_TOKEN             = process.env.HF_TOKEN             || process.env.VITE_HF_TOKEN       || '';
+const SUPABASE_URL         = process.env.SUPABASE_URL         || process.env.VITE_SUPABASE_URL   || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const REDDIT_CLIENT_ID     = process.env.REDDIT_CLIENT_ID     || '';
 const REDDIT_CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET || '';
 const REDDIT_USERNAME      = process.env.REDDIT_USERNAME      || '';
 const REDDIT_PASSWORD      = process.env.REDDIT_PASSWORD      || '';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-                    || process.env.VITE_GEMINI_API_KEY
-                    || '';
 
-const HF_TOKEN = process.env.HF_TOKEN
-              || process.env.VITE_HF_TOKEN
-              || '';
+const REDDIT_SUBREDDITS = ['AIArt', 'StableDiffusion', 'midjourney', 'dalle', 'FluxAI'];
 
-const SUPABASE_URL         = process.env.SUPABASE_URL         || process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
-
-// Subreddits to harvest from — all public, rich in quality AI art prompts
-const TARGET_SUBREDDITS = [
-  'AIArt',
-  'StableDiffusion',
-  'midjourney',
-  'dalle',
-  'FluxAI',
-];
-
-// HuggingFace model priority list (best free models, fastest first)
 const HF_MODELS = [
-  'black-forest-labs/FLUX.1-schnell',          // SOTA, fastest
-  'stabilityai/stable-diffusion-xl-base-1.0',  // reliable fallback
-  'runwayml/stable-diffusion-v1-5',            // last resort
+  'black-forest-labs/FLUX.1-schnell',
+  'stabilityai/stable-diffusion-xl-base-1.0',
+  'runwayml/stable-diffusion-v1-5',
 ];
 
-// Gemini endpoint
 const GEMINI_ENDPOINT =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2.  BANNER
 // ─────────────────────────────────────────────────────────────────────────────
+const hasReddit = !!(REDDIT_CLIENT_ID && REDDIT_CLIENT_SECRET);
 console.log('╔══════════════════════════════════════════════════════╗');
-console.log('║      ProGall Auto-Pipeline — Reddit → AI → Gallery  ║');
+console.log('║  ProGall Auto-Pipeline v2 — Gemini + FLUX.1 + HF  ║');
 console.log('╚══════════════════════════════════════════════════════╝');
 console.log(`Mode        : ${DRY_RUN ? '🟡 DRY RUN (no writes)' : '🟢 LIVE'}`);
+console.log(`Sources     : ${hasReddit ? 'Gemini Prompts + Reddit' : 'Gemini Prompts (Reddit: pending approval)'}`);
 console.log(`Max posts   : ${MAX_POSTS}`);
-console.log(`Min score   : ${MIN_SCORE}`);
-console.log(`Gemini key  : ${GEMINI_API_KEY ? '✅' : '❌ missing'}`);
-console.log(`HF token    : ${HF_TOKEN ? '✅' : '❌ missing'}`);
-console.log(`Reddit creds: ${REDDIT_CLIENT_ID ? '✅' : '⚠️  missing — using public JSON API'}`);
+console.log(`Gemini key  : ${GEMINI_API_KEY ? '✅' : '❌ missing — get free at aistudio.google.com'}`);
+console.log(`HF token    : ${HF_TOKEN ? '✅' : '❌ missing — needed for image generation'}`);
 console.log(`Supabase    : ${SUPABASE_URL ? '✅' : '❌ missing'}`);
 console.log('');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3.  REDDIT  —  fetch trending posts
-//     We use the unauthenticated Reddit JSON API (/r/sub/hot.json) which
-//     requires NO credentials and gives 100 req/min for personal use.
-//     If Reddit OAuth creds are provided we authenticate for a better limit.
+// 3.  GEMINI PROMPT GENERATION  —  primary source (no external API needed!)
+//     Gemini creates fresh, unique, varied AI art prompts every run.
+//     HuggingFace FLUX.1 then generates real images from those prompts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Returns an OAuth Bearer token if credentials are available */
-async function getRedditToken() {
-  if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET) return null;
+// Style seeds — Gemini picks from these each run to ensure variety
+const STYLE_SEEDS = [
+  'photorealistic portrait, dramatic lighting',
+  'cyberpunk cityscape, neon rain',
+  'fantasy landscape, epic scale',
+  'anime character, detailed illustration',
+  'abstract fluid art, vibrant colors',
+  'sci-fi space scene, cinematic',
+  'dark fantasy warrior, atmospheric',
+  'underwater world, bioluminescent',
+  'steampunk architecture, intricate',
+  'surreal dreamlike scene',
+  'ancient ruins, mystical atmosphere',
+  'futuristic robot, sleek design',
+  'enchanted forest, magical light',
+  'oil painting style portrait',
+  'minimalist architectural photo',
+];
 
-  const encoded = Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString('base64');
-  const res = await fetch('https://www.reddit.com/api/v1/access_token', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${encoded}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'ProGall-AutoPipeline/1.0 (by /u/progall_bot)',
-    },
-    body: `grant_type=password&username=${encodeURIComponent(REDDIT_USERNAME)}&password=${encodeURIComponent(REDDIT_PASSWORD)}`,
-  });
-
-  if (!res.ok) {
-    console.warn(`⚠️  Reddit OAuth failed (${res.status}) — falling back to public API`);
-    return null;
-  }
-
-  const json = await res.json();
-  return json.access_token || null;
-}
-
-/** Fetch "hot" posts from one subreddit, return only image posts */
-async function fetchSubredditPosts(subreddit, token, limit = 25) {
-  if (!token) {
-    // Reddit now requires OAuth for all API access (403 on public JSON)
-    console.warn(`  ⚠️  r/${subreddit}: No Reddit OAuth token — skipping (set REDDIT_CLIENT_ID/SECRET)`);
-    return [];
-  }
-
-  const url = `https://oauth.reddit.com/r/${subreddit}/hot?limit=${limit}&t=week`;
-  const headers = {
-    'User-Agent': 'ProGall-AutoPipeline/1.0 (by /u/progall_bot)',
-    'Authorization': `Bearer ${token}`,
-  };
-
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    console.warn(`⚠️  r/${subreddit}: HTTP ${res.status} — skipping`);
-    return [];
-  }
-
-  const json = await res.json();
-  const children = json?.data?.children || [];
-
-  return children
-    .map(c => c.data)
-    .filter(p => {
-      // Must have an image preview or direct image link
-      const hasImage = p.url && (
-        p.url.match(/\.(jpg|jpeg|png|webp|gif)(\?|$)/i) ||
-        p.preview?.images?.[0]?.source?.url ||
-        p.thumbnail?.startsWith('http')
-      );
-      // Must meet minimum score
-      const goodScore = (p.score || 0) >= MIN_SCORE;
-      // Must not be a pinned announcement
-      const notStickied = !p.stickied;
-      // Must have some text body or meaningful title for prompt extraction
-      const hasContent = (p.selftext && p.selftext.length > 20) || p.title.length > 15;
-
-      return hasImage && goodScore && notStickied && hasContent;
-    })
-    .map(p => ({
-      id: p.id,
-      title: p.title,
-      body: p.selftext || '',
-      score: p.score,
-      subreddit: p.subreddit,
-      author: p.author,
-      permalink: `https://reddit.com${p.permalink}`,
-      imageUrl: extractBestImageUrl(p),
-    }));
-}
-
-/** Extract the highest-quality image URL from a Reddit post */
-function extractBestImageUrl(post) {
-  // 1. Direct image link
-  if (post.url && post.url.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) {
-    return post.url;
-  }
-  // 2. Preview image (Reddit CDN) — decode HTML entities
-  const preview = post.preview?.images?.[0]?.source?.url;
-  if (preview) {
-    return preview.replace(/&amp;/g, '&');
-  }
-  // 3. Fallback to thumbnail
-  if (post.thumbnail?.startsWith('http')) {
-    return post.thumbnail;
-  }
-  return null;
-}
-
-/** Deduplicate posts by ID across subreddits */
-function deduplicatePosts(allPosts) {
-  const seen = new Set();
-  return allPosts.filter(p => {
-    if (seen.has(p.id)) return false;
-    seen.add(p.id);
-    return true;
-  });
-}
-
-/** Sort by score descending, take top N */
-function selectTopPosts(posts, n) {
-  return posts
-    .filter(p => p.imageUrl)    // only posts with an image
-    .sort((a, b) => b.score - a.score)
-    .slice(0, n);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 4.  GEMINI  —  enhance the prompt + categorise
-// ─────────────────────────────────────────────────────────────────────────────
-async function enhanceWithGemini(post) {
+/**
+ * Use Gemini to generate N unique, diverse AI art prompts
+ * Returns posts in the unified pipeline format
+ */
+async function generateGeminiPrompts(count) {
   if (!GEMINI_API_KEY) {
-    console.warn('  ⚠️  No Gemini key — using raw title as prompt');
-    return buildFallbackEnhancement(post);
+    console.warn('  ⚠️  No Gemini key — cannot generate prompts. Add GEMINI_API_KEY.');
+    return [];
   }
 
-  const rawText = [post.title, post.body].filter(Boolean).join('\n').slice(0, 1500);
+  // Pick random style seeds for this run
+  const seeds = [...STYLE_SEEDS].sort(() => Math.random() - 0.5).slice(0, count);
+  console.log(`  🎲  Style seeds: ${seeds.slice(0, 3).map(s => `"${s}"`).join(', ')}...`);
 
-  const systemPrompt = `You are an expert AI art prompt engineer for a gallery website called ProGall.
+  const prompt = `You are an expert AI art prompt engineer. Generate exactly ${count} unique, diverse, high-quality image generation prompts for a gallery website.
 
-Given a raw Reddit post about AI art, extract and enhance the image prompt, then return ONLY valid JSON with this exact structure (no markdown, no code fences, just raw JSON):
+Each prompt should be vivid, detailed, and optimized for FLUX.1 / Stable Diffusion image generation.
+Cover a variety of styles and subjects. Use these style seeds as inspiration but be creative:
+${seeds.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
-{
-  "enhanced_prompt": "A detailed, vivid image generation prompt (2-4 sentences, describing subject, style, lighting, mood, technical quality terms like 4K, cinematic, hyperrealistic)",
-  "category": "one of: Photorealistic, Fantasy, Anime, Cyberpunk, Portrait, Abstract, Landscape, Architecture, Sci-Fi, 3D Render",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "editorial_summary": "One sentence describing what makes this image special",
-  "editorial_notes": "One paragraph explaining the artistic technique and why this prompt works well",
-  "editorial_tips": "One practical tip for remixing or building on this prompt"
-}
-
-The enhanced_prompt MUST be something you could directly paste into FLUX.1 or Stable Diffusion to generate a great image.`;
-
-  const body = {
-    contents: [
-      { role: 'user', parts: [{ text: `${systemPrompt}\n\nReddit post:\nTitle: ${post.title}\nBody: ${post.body || '(no body)'}\nSubreddit: r/${post.subreddit}` }] }
-    ],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
-  };
+Return ONLY valid JSON array (no markdown, no code fences):
+[
+  {
+    "prompt": "Full detailed image generation prompt, 2-3 sentences with subject, style, lighting, mood, technical quality terms",
+    "category": "one of: Photorealistic, Fantasy, Anime, Cyberpunk, Portrait, Abstract, Landscape, Architecture, Sci-Fi, 3D Render",
+    "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
+    "editorial_summary": "One compelling sentence about this image",
+    "editorial_notes": "One paragraph about the artistic technique",
+    "editorial_tips": "One tip for remixing this prompt"
+  }
+]`;
 
   try {
     const res = await fetch(GEMINI_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.9,
+          maxOutputTokens: 8000,
+          responseMimeType: 'application/json',
+        },
+      }),
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 200)}`);
+      const t = await res.text();
+      throw new Error(`Gemini ${res.status}: ${t.slice(0, 150)}`);
+    }
+
+    const json    = await res.json();
+    const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsed  = extractJson(rawText, true);
+
+    console.log(`  ✅  Gemini generated ${parsed.length} prompts`);
+
+    return parsed.map((item, i) => ({
+      id:              `gemini_${Date.now()}_${i}`,
+      title:           item.prompt?.slice(0, 120) || `Generated prompt ${i + 1}`,
+      body:            item.prompt || '',
+      score:           1000,
+      subreddit:       'gemini',
+      author:          'gemini-ai',
+      permalink:       `https://progall.tech/gallery`,
+      imageUrl:        null,          // no existing image — HF will generate one
+      _existingPrompt: item.prompt,
+      // Pre-computed enhancement (no need for second Gemini call)
+      _enhancement: {
+        enhanced_prompt:   item.prompt,
+        category:          item.category    || 'Abstract',
+        tags:              item.tags         || ['ai-art', 'generated'],
+        editorial_summary: item.editorial_summary || '',
+        editorial_notes:   item.editorial_notes   || '',
+        editorial_tips:    item.editorial_tips     || '',
+      },
+    }));
+  } catch (err) {
+    console.warn(`  ⚠️  Gemini prompt generation failed: ${err.message}`);
+    return [];
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4.  REDDIT  —  activated when OAuth credentials are available
+// ─────────────────────────────────────────────────────────────────────────────
+async function getRedditToken() {
+  if (!REDDIT_CLIENT_ID || !REDDIT_CLIENT_SECRET) return null;
+  try {
+    const encoded = Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString('base64');
+    const res = await fetch('https://www.reddit.com/api/v1/access_token', {
+      method: 'POST',
+      headers: {
+        'Authorization':  `Basic ${encoded}`,
+        'Content-Type':   'application/x-www-form-urlencoded',
+        'User-Agent':     'ProGall-AutoPipeline/2.0 (by /u/rasaljaman)',
+      },
+      body: `grant_type=password&username=${encodeURIComponent(REDDIT_USERNAME)}&password=${encodeURIComponent(REDDIT_PASSWORD)}`,
+    });
+    if (!res.ok) { console.warn(`  ⚠️  Reddit OAuth failed (${res.status})`); return null; }
+    const json = await res.json();
+    return json.access_token || null;
+  } catch (err) {
+    console.warn(`  ⚠️  Reddit OAuth error: ${err.message}`);
+    return null;
+  }
+}
+
+async function fetchRedditPosts(token) {
+  if (!token) return [];
+  const posts = [];
+  for (const sub of REDDIT_SUBREDDITS) {
+    try {
+      const res = await fetch(
+        `https://oauth.reddit.com/r/${sub}/hot?limit=15&t=week`,
+        { headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'ProGall-AutoPipeline/2.0' } }
+      );
+      if (!res.ok) { console.warn(`  ⚠️  r/${sub}: ${res.status}`); continue; }
+      const json     = await res.json();
+      const children = json?.data?.children || [];
+      const filtered = children
+        .map(c => c.data)
+        .filter(p => !p.stickied && (p.score || 0) >= MIN_SCORE && hasImageUrl(p))
+        .map(p => ({
+          id:        p.id,
+          title:     p.title,
+          body:      p.selftext || '',
+          score:     p.score,
+          subreddit: p.subreddit,
+          author:    p.author,
+          permalink: `https://reddit.com${p.permalink}`,
+          imageUrl:  extractRedditImage(p),
+        }));
+      posts.push(...filtered);
+      console.log(`  r/${sub}: ${filtered.length} posts`);
+      await sleep(600);
+    } catch (err) { console.warn(`  ⚠️  r/${sub}: ${err.message}`); }
+  }
+  return posts;
+}
+
+function hasImageUrl(p) {
+  return !!(
+    (p.url && p.url.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) ||
+    p.preview?.images?.[0]?.source?.url ||
+    p.thumbnail?.startsWith('http')
+  );
+}
+
+function extractRedditImage(p) {
+  if (p.url && p.url.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) return p.url;
+  const prev = p.preview?.images?.[0]?.source?.url;
+  if (prev) return prev.replace(/&amp;/g, '&');
+  if (p.thumbnail?.startsWith('http')) return p.thumbnail;
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5.  GEMINI  —  enrich prompt + categorise
+// ─────────────────────────────────────────────────────────────────────────────
+async function enhanceWithGemini(post) {
+  if (!GEMINI_API_KEY) {
+    console.warn('  ⚠️  No Gemini key — using raw prompt');
+    return fallbackEnhancement(post);
+  }
+
+  const isCivitai = post.subreddit === 'civitai';
+  const rawPrompt = post._existingPrompt || [post.title, post.body].filter(Boolean).join('\n');
+
+  const userMsg = isCivitai
+    ? `You are an expert AI art curator for a gallery website called ProGall.
+
+Given this existing AI art prompt from Civitai.com, return ONLY valid JSON (no markdown, no code fences):
+
+{
+  "enhanced_prompt": "Keep the core prompt but make it richer and more vivid. Add lighting, mood, and technical quality descriptors. 2-3 sentences max.",
+  "category": "one of: Photorealistic, Fantasy, Anime, Cyberpunk, Portrait, Abstract, Landscape, Architecture, Sci-Fi, 3D Render",
+  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
+  "editorial_summary": "One sentence about what makes this image visually compelling",
+  "editorial_notes": "One paragraph about the artistic style and technique",
+  "editorial_tips": "One practical tip for someone who wants to remix this prompt"
+}
+
+Original Civitai prompt: ${rawPrompt.slice(0, 800)}`
+    : `You are an expert AI art prompt engineer for a gallery website called ProGall.
+
+Given this Reddit AI art post, extract and enhance the image prompt. Return ONLY valid JSON:
+
+{
+  "enhanced_prompt": "A detailed, vivid image generation prompt. 2-3 sentences with subject, style, lighting, mood, technical quality.",
+  "category": "one of: Photorealistic, Fantasy, Anime, Cyberpunk, Portrait, Abstract, Landscape, Architecture, Sci-Fi, 3D Render",
+  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
+  "editorial_summary": "One sentence describing what makes this image special",
+  "editorial_notes": "One paragraph about the artistic technique",
+  "editorial_tips": "One practical tip for remixing this prompt"
+}
+
+Title: ${post.title}
+Body: ${(post.body || '').slice(0, 600)}`;
+
+  try {
+    const res = await fetch(GEMINI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`Gemini ${res.status}: ${t.slice(0, 150)}`);
     }
 
     const json = await res.json();
     const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // Strip any accidental markdown fences
-    const cleaned = text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed  = extractJson(text, false);
 
     return {
-      enhanced_prompt:   parsed.enhanced_prompt   || post.title,
+      enhanced_prompt:   parsed.enhanced_prompt   || rawPrompt.slice(0, 300),
       category:          parsed.category          || 'Abstract',
       tags:              Array.isArray(parsed.tags) ? parsed.tags.slice(0, 8) : [],
       editorial_summary: parsed.editorial_summary || '',
@@ -284,108 +346,98 @@ The enhanced_prompt MUST be something you could directly paste into FLUX.1 or St
       editorial_tips:    parsed.editorial_tips     || '',
     };
   } catch (err) {
-    console.warn(`  ⚠️  Gemini enhancement failed: ${err.message}`);
-    return buildFallbackEnhancement(post);
+    console.warn(`  ⚠️  Gemini failed: ${err.message}`);
+    return fallbackEnhancement(post);
   }
 }
 
-function buildFallbackEnhancement(post) {
+function fallbackEnhancement(post) {
+  const prompt = post._existingPrompt || post.title;
+  // Auto-detect category from prompt keywords
+  const lower = prompt.toLowerCase();
+  const category =
+    lower.match(/cyber|neon|futur|sci.fi|robot/) ? 'Cyberpunk' :
+    lower.match(/anime|manga|ghibli/) ? 'Anime' :
+    lower.match(/portrait|face|eyes|person|woman|man/) ? 'Portrait' :
+    lower.match(/landscape|mountain|forest|ocean|sky/) ? 'Landscape' :
+    lower.match(/fantasy|dragon|magic|wizard|elf/) ? 'Fantasy' :
+    lower.match(/abstract|fluid|surreal|dream/) ? 'Abstract' : 'Photorealistic';
   return {
-    enhanced_prompt:   post.title,
-    category:          'Abstract',
-    tags:              ['ai-art', 'generated', post.subreddit.toLowerCase()],
-    editorial_summary: `From r/${post.subreddit} — score ${post.score}`,
+    enhanced_prompt:   prompt,
+    category,
+    tags:              ['ai-art', 'generated', post.subreddit],
+    editorial_summary: '',
     editorial_notes:   '',
     editorial_tips:    '',
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5.  HUGGING FACE  —  generate the image
+// 6.  IMAGE ACQUISITION  —  download from Lexica OR generate with HuggingFace
 // ─────────────────────────────────────────────────────────────────────────────
-async function generateImageHF(prompt, modelIndex = 0) {
-  if (modelIndex >= HF_MODELS.length) {
-    throw new Error('All HuggingFace models failed');
-  }
 
+/** Download an image from a URL and return as Buffer */
+async function downloadImage(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': 'ProGall-AutoPipeline/2.0' } });
+  if (!res.ok) throw new Error(`Download failed: HTTP ${res.status} for ${url}`);
+  const ab = await res.arrayBuffer();
+  return Buffer.from(ab);
+}
+
+/** Generate image using HuggingFace Inference API */
+async function generateImageHF(prompt, modelIndex = 0) {
+  if (modelIndex >= HF_MODELS.length) throw new Error('All HuggingFace models exhausted');
   const model = HF_MODELS[modelIndex];
-  console.log(`  🎨  Generating with ${model}...`);
+  console.log(`  🎨  HF generating with ${model}...`);
 
   const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${HF_TOKEN}`,
-      'Content-Type': 'application/json',
-      'x-wait-for-model': 'true',   // wait for cold-start instead of 503
+      'Authorization':    `Bearer ${HF_TOKEN}`,
+      'Content-Type':     'application/json',
+      'x-wait-for-model': 'true',
     },
     body: JSON.stringify({
       inputs: prompt,
-      parameters: {
-        width: 1024,
-        height: 1024,
-        num_inference_steps: 4,    // FLUX.1-schnell is fast at 4 steps
-        guidance_scale: 0,          // schnell is guidance-free
-      },
+      parameters: { width: 1024, height: 1024, num_inference_steps: 4, guidance_scale: 0 },
     }),
   });
 
-  // HF returns 503 when model is loading — retry with next model
-  if (res.status === 503) {
-    console.warn(`  ⚠️  ${model} is loading/unavailable — trying next model`);
+  if (res.status === 503 || res.status === 429) {
+    console.warn(`  ⚠️  ${model} unavailable — trying next`);
     return generateImageHF(prompt, modelIndex + 1);
   }
-
   if (!res.ok) {
-    const errText = await res.text();
-    // If rate-limited, retry next model
-    if (res.status === 429) {
-      console.warn(`  ⚠️  ${model} rate limited — trying next model`);
-      return generateImageHF(prompt, modelIndex + 1);
-    }
-    throw new Error(`HF API ${res.status}: ${errText.slice(0, 300)}`);
+    const t = await res.text();
+    if (t.includes('loading')) return generateImageHF(prompt, modelIndex + 1);
+    throw new Error(`HF ${res.status}: ${t.slice(0, 200)}`);
   }
-
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.startsWith('image/')) {
-    const text = await res.text();
-    // If model is still loading, wait and retry
-    if (text.includes('loading') || text.includes('currently loading')) {
-      console.warn(`  ⚠️  ${model} still loading — trying next model`);
-      return generateImageHF(prompt, modelIndex + 1);
-    }
-    throw new Error(`Unexpected HF response (${contentType}): ${text.slice(0, 200)}`);
-  }
-
-  const arrayBuffer = await res.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  console.log(`  ✅  Generated image: ${(buffer.length / 1024).toFixed(0)} KB`);
-  return buffer;
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.startsWith('image/')) throw new Error(`HF returned non-image: ${ct}`);
+  return Buffer.from(await res.arrayBuffer());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6.  SUPABASE  —  upload image + insert row
+// 7.  SUPABASE  —  upload + insert
 // ─────────────────────────────────────────────────────────────────────────────
-async function uploadAndInsert(supabase, postId, buffer, enhancement, post) {
-  const filename = `auto-pipeline/${postId}-${Date.now()}.webp`;
+async function uploadAndInsert(supabase, post, buffer, enhancement) {
+  const ext         = 'jpg';
+  const filename    = `auto-pipeline/${post.id}-${Date.now()}.${ext}`;
+  const contentType = 'image/jpeg';
 
-  // Upload to Supabase Storage (bucket: prompt-images)
-  console.log(`  📤  Uploading to Storage: prompt-images/${filename}`);
+  console.log(`  📤  Uploading: prompt-images/${filename}`);
   const { error: uploadErr } = await supabase.storage
     .from('prompt-images')
-    .upload(filename, buffer, {
-      contentType: 'image/webp',
-      upsert: false,
-    });
+    .upload(filename, buffer, { contentType, upsert: false });
 
-  if (uploadErr) throw new Error(`Storage upload failed: ${uploadErr.message}`);
+  if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
 
   const { data: { publicUrl } } = supabase.storage
     .from('prompt-images')
     .getPublicUrl(filename);
 
-  console.log(`  🔗  Public URL: ${publicUrl}`);
+  console.log(`  🔗  ${publicUrl}`);
 
-  // Insert into images table
   const row = {
     url:             publicUrl,
     thumbnail:       publicUrl,
@@ -395,144 +447,143 @@ async function uploadAndInsert(supabase, postId, buffer, enhancement, post) {
     width:           1024,
     height:          1024,
     status:          'active',
-    source:          'reddit',
+    source:          post.subreddit,   // 'gemini', 'reddit', etc.
     original_source: post.permalink,
   };
 
-  console.log(`  💾  Inserting row into images table...`);
   const { error: dbErr } = await supabase.from('images').insert(row);
   if (dbErr) throw new Error(`DB insert failed: ${dbErr.message}`);
 
-  console.log(`  ✅  Row inserted successfully`);
+  console.log(`  ✅  Inserted into gallery`);
   return publicUrl;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 7.  CHECK DUPLICATE  —  skip posts already in DB
+// 8.  DUPLICATE CHECK
 // ─────────────────────────────────────────────────────────────────────────────
 async function isAlreadyIngested(supabase, permalink) {
   const { data } = await supabase
-    .from('images')
-    .select('id')
-    .eq('original_source', permalink)
-    .limit(1);
+    .from('images').select('id').eq('original_source', permalink).limit(1);
   return data && data.length > 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 8.  MAIN ORCHESTRATOR
+// 9.  MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
-  // Validate required env vars
-  if (!GEMINI_API_KEY) console.warn('⚠️  GEMINI_API_KEY not set — prompts will NOT be enhanced');
-  if (!HF_TOKEN && !DRY_RUN) {
-    console.error('❌  HF_TOKEN is required for image generation');
-    process.exit(1);
-  }
   if (!SUPABASE_URL || (!SUPABASE_SERVICE_KEY && !DRY_RUN)) {
     console.error('❌  SUPABASE_URL and SUPABASE_SERVICE_KEY are required');
     process.exit(1);
   }
 
   const supabase = DRY_RUN ? null : createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  let allPosts   = [];
 
-  // ── Step 1: Discover Reddit posts ─────────────────────────────────────────
-  console.log('\n📡  Step 1: Discovering trending posts from Reddit...');
-  const token = await getRedditToken();
-  if (token) console.log('  🔑  Using authenticated Reddit OAuth');
-  else        console.log('  ⚠️  No Reddit credentials — will use mock data in DRY_RUN mode');
-
-  let allPosts = [];
-
-  if (!token && DRY_RUN) {
-    // Provide mock posts so the full pipeline can be tested locally
-    console.log('  🧪  Using mock Reddit posts for dry-run test...');
-    allPosts = getMockPosts();
-  } else {
-    for (const sub of TARGET_SUBREDDITS) {
-      try {
-        const posts = await fetchSubredditPosts(sub, token, 15);
-        console.log(`  r/${sub}: found ${posts.length} qualifying posts`);
-        allPosts.push(...posts);
-        // Small delay to respect rate limits
-        await sleep(600);
-      } catch (err) {
-        console.warn(`  ⚠️  r/${sub} failed: ${err.message}`);
-      }
-    }
+  // ── Source 1: Gemini-generated prompts (always works, uses your existing Gemini key) ──
+  console.log('\n✨   Step 1: Generating AI art prompts with Gemini...');
+  try {
+    const geminiPosts = await generateGeminiPrompts(MAX_POSTS);
+    console.log(`  ✅  Gemini: ${geminiPosts.length} prompts generated`);
+    allPosts.push(...geminiPosts);
+  } catch (err) {
+    console.warn(`  ⚠️  Gemini prompts failed: ${err.message}`);
   }
 
-  const unique   = deduplicatePosts(allPosts);
-  const selected = selectTopPosts(unique, MAX_POSTS);
-  console.log(`\n  📊  Total unique: ${unique.length} → Selected top: ${selected.length}`);
+  // ── Source 2: Reddit (when credentials are set) ───────────────────────────
+  if (hasReddit) {
+    console.log('\n📡  Step 1b: Fetching from Reddit (credentials found)...');
+    try {
+      const token       = await getRedditToken();
+      const redditPosts = token ? await fetchRedditPosts(token) : [];
+      console.log(`  ✅  Reddit: ${redditPosts.length} posts found`);
+      allPosts.push(...redditPosts);
+    } catch (err) {
+      console.warn(`  ⚠️  Reddit failed: ${err.message}`);
+    }
+  } else {
+    console.log('\n📡  Reddit: waiting for API approval — will auto-activate when creds are added to GitHub Secrets');
+  }
+
+  // ── Select top N ──────────────────────────────────────────────────────────
+  // Deduplicate by ID
+  const seen    = new Set();
+  const unique  = allPosts.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+  // Shuffle for variety
+  const shuffled = unique.sort(() => Math.random() - 0.5);
+  // Gemini posts have no imageUrl (generated by HF), Reddit/Civitai have real imageUrls
+  const selected = shuffled.slice(0, MAX_POSTS);
+
+  console.log(`\n  📊  Generated/found: ${unique.length} → Selected: ${selected.length}`);
 
   if (selected.length === 0) {
-    if (!token) {
-      console.log('\n  ❗ No Reddit credentials found.');
-      console.log('  Add REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET as GitHub Secrets.');
-      console.log('  See: https://www.reddit.com/prefs/apps');
-    }
-    console.log('  No posts found matching criteria. Exiting.');
+    console.log('  No prompts generated. Check GEMINI_API_KEY is set.');
     process.exit(0);
   }
 
-  // ── Steps 2-5: Process each post ─────────────────────────────────────────
-  console.log('\n🔄  Processing posts...\n');
-  let successCount = 0;
-  let skipCount    = 0;
+  // ── Process each post ─────────────────────────────────────────────────────
+  console.log('\n🔄  Processing...\n');
+  let successCount = 0, skipCount = 0;
 
   for (let i = 0; i < selected.length; i++) {
     const post = selected[i];
     console.log(`─────────────────────────────────────────────────────`);
-    console.log(`[${i + 1}/${selected.length}] r/${post.subreddit} | score:${post.score}`);
-    console.log(`  Title: ${post.title.slice(0, 80)}...`);
+    console.log(`[${i + 1}/${selected.length}] ${post.subreddit.toUpperCase()}`);
+    console.log(`  Prompt: ${post.title.slice(0, 90)}...`);
 
     try {
-      // Skip duplicates (already in DB)
+      // Skip duplicates
       if (!DRY_RUN) {
-        const alreadyIn = await isAlreadyIngested(supabase, post.permalink);
-        if (alreadyIn) {
-          console.log('  ⏭️  Already in database — skipping');
+        if (await isAlreadyIngested(supabase, post.permalink)) {
+          console.log('  ⏭️  Already in gallery — skipping');
           skipCount++;
           continue;
         }
       }
 
-      // Step 2: Gemini enhancement
-      console.log('  🧠  Step 2: Enhancing prompt with Gemini 2.0 Flash...');
-      const enhancement = await enhanceWithGemini(post);
-      console.log(`  ✅  Category: ${enhancement.category}`);
-      console.log(`  ✅  Prompt: ${enhancement.enhanced_prompt.slice(0, 100)}...`);
+      // Use pre-computed enhancement (Gemini prompts) OR call Gemini to enhance (Reddit posts)
+      let enhancement;
+      if (post._enhancement) {
+        enhancement = post._enhancement; // already computed during prompt generation
+        console.log(`  ✅  Category: ${enhancement.category} (pre-computed)`);
+      } else {
+        console.log('  🧠  Gemini: enhancing prompt...');
+        enhancement = await enhanceWithGemini(post);
+        console.log(`  ✅  Category: ${enhancement.category}`);
+      }
 
-      // Step 3: Generate image
       if (DRY_RUN) {
-        console.log('  🎨  [DRY RUN] Would generate image with HuggingFace FLUX.1-schnell');
-        console.log('  📤  [DRY RUN] Would upload to Supabase Storage');
-        console.log('  💾  [DRY RUN] Would insert into images table:');
+        console.log('  🟡  [DRY RUN] Would process and insert:');
         console.log(JSON.stringify({
-          url: `https://supabase.co/storage/prompt-images/auto-pipeline/${post.id}.webp`,
-          prompt: enhancement.enhanced_prompt,
+          source:   post.subreddit,
+          prompt:   enhancement.enhanced_prompt.slice(0, 80) + '...',
           category: enhancement.category,
-          tags: enhancement.tags,
-          source: 'reddit',
-          original_source: post.permalink,
-        }, null, 4));
+          tags:     enhancement.tags,
+          imageUrl: post.imageUrl,
+        }, null, 2));
         successCount++;
         continue;
       }
 
-      console.log('  🎨  Step 3: Generating image with HuggingFace...');
-      const imageBuffer = await generateImageHF(enhancement.enhanced_prompt);
+      // Get image buffer — always use HuggingFace for Gemini-sourced prompts
+      let imageBuffer;
+      if (post.imageUrl) {
+        // Has existing image (Reddit) — download it
+        console.log('  📥  Downloading source image...');
+        imageBuffer = await downloadImage(post.imageUrl);
+        console.log(`  ✅  Downloaded: ${(imageBuffer.length / 1024).toFixed(0)} KB`);
+      } else {
+        // Gemini-generated prompt — generate image with HuggingFace FLUX.1
+        console.log('  🎨  Generating image with HuggingFace FLUX.1-schnell...');
+        imageBuffer = await generateImageHF(enhancement.enhanced_prompt);
+        console.log(`  ✅  Generated: ${(imageBuffer.length / 1024).toFixed(0)} KB`);
+      }
 
-      // Step 4+5: Upload + insert
-      console.log('  📤  Step 4/5: Uploading and inserting into Supabase...');
-      const url = await uploadAndInsert(supabase, post.id, imageBuffer, enhancement, post);
-
-      console.log(`  🎉  Done! Available at: ${url}`);
+      // Upload + insert
+      const url = await uploadAndInsert(supabase, post, imageBuffer, enhancement);
+      console.log(`  🎉  Live at: ${url}`);
       successCount++;
 
-      // Be gentle with APIs — 3s between posts
-      if (i < selected.length - 1) await sleep(3000);
+      if (i < selected.length - 1) await sleep(2000);
 
     } catch (err) {
       console.error(`  ❌  Failed: ${err.message}`);
@@ -543,7 +594,8 @@ async function main() {
   console.log('\n╔══════════════════════════════════════════════════════╗');
   console.log('║                    Run Summary                       ║');
   console.log('╠══════════════════════════════════════════════════════╣');
-  console.log(`║  Processed : ${String(selected.length).padEnd(38)}║`);
+  console.log(`║  Source    : ${String(hasReddit ? 'Gemini + Reddit' : 'Gemini (Reddit pending)').padEnd(38)}║`);
+  console.log(`║  Selected  : ${String(selected.length).padEnd(38)}║`);
   console.log(`║  Succeeded : ${String(successCount).padEnd(38)}║`);
   console.log(`║  Skipped   : ${String(skipCount).padEnd(38)}║`);
   console.log(`║  Failed    : ${String(selected.length - successCount - skipCount).padEnd(38)}║`);
@@ -552,54 +604,20 @@ async function main() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA  —  used when running DRY_RUN without Reddit credentials
+// UTILITIES
 // ─────────────────────────────────────────────────────────────────────────────
-function getMockPosts() {
-  return [
-    {
-      id: 'mock_001',
-      title: 'Hyperrealistic portrait of an ancient warrior queen, golden armour, dramatic sunset, 8K detail',
-      body: 'Generated with FLUX.1 at 1024x1024. Prompt: a regal warrior queen wearing intricate golden plate armour, fierce expression, dramatic sunset background casting warm light, hyperrealistic skin texture, 8K resolution, cinematic composition',
-      score: 4200,
-      subreddit: 'AIArt',
-      author: 'mock_user',
-      permalink: 'https://reddit.com/r/AIArt/mock_001',
-      imageUrl: 'https://picsum.photos/seed/warrior/1024/1024',
-    },
-    {
-      id: 'mock_002',
-      title: 'Neon-drenched cyberpunk alley at night, rain reflections, holographic ads, anime style',
-      body: 'Prompt used: neon-lit cyberpunk alley, heavy rain creating reflective puddles, towering holographic advertisements in Japanese and English, dark moody atmosphere, anime concept art style, highly detailed',
-      score: 3800,
-      subreddit: 'StableDiffusion',
-      author: 'mock_user2',
-      permalink: 'https://reddit.com/r/StableDiffusion/mock_002',
-      imageUrl: 'https://picsum.photos/seed/cyberpunk/1024/1024',
-    },
-    {
-      id: 'mock_003',
-      title: 'Ancient underwater city, bioluminescent coral, manta rays, god rays through deep blue water',
-      body: 'Midjourney v6 prompt: ancient lost city submerged in the deep ocean, glowing bioluminescent coral structures, graceful manta rays gliding past, divine god rays filtering through the deep blue water, dreamlike atmosphere, photorealistic',
-      score: 5100,
-      subreddit: 'midjourney',
-      author: 'mock_user3',
-      permalink: 'https://reddit.com/r/midjourney/mock_003',
-      imageUrl: 'https://picsum.photos/seed/underwater/1024/1024',
-    },
-  ];
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function extractJson(text, isArray = false) {
+  const startChar = isArray ? '[' : '{';
+  const endChar = isArray ? ']' : '}';
+  const start = text.indexOf(startChar);
+  const end = text.lastIndexOf(endChar);
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error(`Could not find JSON ${isArray ? 'array' : 'object'} in response: "${text.slice(0, 100)}..."`);
+  }
+  const jsonText = text.slice(start, end + 1);
+  return JSON.parse(jsonText);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UTILITY
-// ─────────────────────────────────────────────────────────────────────────────
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ENTRY POINT
-// ─────────────────────────────────────────────────────────────────────────────
-main().catch(err => {
-  console.error('\n💥 Fatal error:', err);
-  process.exit(1);
-});
+main().catch(err => { console.error('\n💥 Fatal:', err); process.exit(1); });
