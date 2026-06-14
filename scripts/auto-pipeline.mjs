@@ -96,21 +96,21 @@ console.log('');
 
 // Style seeds — Gemini picks from these each run to ensure variety
 const STYLE_SEEDS = [
-  'photorealistic portrait, dramatic lighting',
-  'cyberpunk cityscape, neon rain',
-  'fantasy landscape, epic scale',
-  'anime character, detailed illustration',
-  'abstract fluid art, vibrant colors',
-  'sci-fi space scene, cinematic',
-  'dark fantasy warrior, atmospheric',
-  'underwater world, bioluminescent',
-  'steampunk architecture, intricate',
-  'surreal dreamlike scene',
-  'ancient ruins, mystical atmosphere',
-  'futuristic robot, sleek design',
-  'enchanted forest, magical light',
-  'oil painting style portrait',
-  'minimalist architectural photo',
+  'photorealistic portrait of a woman, dramatic studio lighting, sharp focus, 8k',
+  'candid portrait of a smiling man in a cozy cafe, soft natural window light',
+  'commercial product shot of a luxury perfume bottle on a sleek black marble slab with water splashes',
+  'high-end cosmetic cream jar product photography, gold accents, floating pastel flower petals',
+  'cyberpunk street citizen with neon reflections on their face and leather jacket, rain shower',
+  'editorial product shot of modern wireless headphones, minimalist wooden stand, clean soft shadows',
+  'group of happy diverse friends laughing together at a sunny outdoor cafe table, cinematic depth of field',
+  'futuristic astronaut close-up portrait, glowing neon visor reflections, detailed space suit',
+  'classical oil painting style portrait of a nobleman with a thoughtful expression, warm chiaroscuro',
+  'action shot of a runner athlete mid-stride on a wet city track at sunset, dramatic backlighting',
+  'professional product photography of a sleek smart watch, floating water droplets, neon blue accents',
+  'anime style portrait of a young adventurer with a detailed colorful fantasy background',
+  'vintage 1970s film style portrait of a musician holding an acoustic guitar, warm sun flares',
+  'sleek designer sunglasses commercial photography, resting on a white sand dune, bright sunlight',
+  'close-up portrait of an elderly artisan smiling in a dusty wood workshop, cinematic lighting',
 ];
 
 /**
@@ -130,7 +130,14 @@ async function generateGeminiPrompts(count) {
   const prompt = `You are an expert AI art prompt engineer. Generate exactly ${count} unique, diverse, high-quality image generation prompts for a gallery website.
 
 Each prompt should be vivid, detailed, and optimized for FLUX.1 / Stable Diffusion image generation.
-Cover a variety of styles and subjects. Use these style seeds as inspiration but be creative:
+
+CRITICAL REQUIREMENT: Every prompt generated MUST feature either:
+1. One or more people, focusing on realistic human faces, expressions, emotions, or action poses (e.g., portraits, candid shots, stylized characters).
+2. Professional product photography/commercial shots (e.g., perfume bottles, skincare jars, tech gadgets, fashion accessories on clean, aesthetic backgrounds).
+
+Avoid abstract shapes or pure landscapes without people or products.
+
+Use these seeds as inspiration but be creative:
 ${seeds.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
 Return ONLY valid JSON array (no markdown, no code fences):
