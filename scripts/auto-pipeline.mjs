@@ -177,26 +177,31 @@ Return ONLY valid JSON array (no markdown, no code fences):
 
     console.log(`  ✅  Gemini generated ${parsed.length} prompts`);
 
-    return parsed.map((item, i) => ({
-      id:              `gemini_${Date.now()}_${i}`,
-      title:           item.prompt?.slice(0, 120) || `Generated prompt ${i + 1}`,
-      body:            item.prompt || '',
-      score:           1000,
-      subreddit:       'gemini',
-      author:          'gemini-ai',
-      permalink:       `https://progall.tech/gallery`,
-      imageUrl:        null,          // no existing image — HF will generate one
-      _existingPrompt: item.prompt,
-      // Pre-computed enhancement (no need for second Gemini call)
-      _enhancement: {
-        enhanced_prompt:   item.prompt,
-        category:          item.category    || 'Abstract',
-        tags:              item.tags         || ['ai-art', 'generated'],
-        editorial_summary: item.editorial_summary || '',
-        editorial_notes:   item.editorial_notes   || '',
-        editorial_tips:    item.editorial_tips     || '',
-      },
-    }));
+    return parsed.map((item, i) => {
+      // Create a unique permalink per prompt using a stable hash of the prompt text
+      // This prevents all Gemini posts from sharing the same original_source and being skipped as duplicates
+      const promptHash = Buffer.from((item.prompt || '').slice(0, 200)).toString('base64').slice(0, 32);
+      return {
+        id:              `gemini_${Date.now()}_${i}`,
+        title:           item.prompt?.slice(0, 120) || `Generated prompt ${i + 1}`,
+        body:            item.prompt || '',
+        score:           1000,
+        subreddit:       'gemini',
+        author:          'gemini-ai',
+        permalink:       `gemini://auto-pipeline/${promptHash}`,  // unique per prompt
+        imageUrl:        null,          // no existing image — HF will generate one
+        _existingPrompt: item.prompt,
+        // Pre-computed enhancement (no need for second Gemini call)
+        _enhancement: {
+          enhanced_prompt:   item.prompt,
+          category:          item.category    || 'Abstract',
+          tags:              item.tags         || ['ai-art', 'generated'],
+          editorial_summary: item.editorial_summary || '',
+          editorial_notes:   item.editorial_notes   || '',
+          editorial_tips:    item.editorial_tips     || '',
+        },
+      };
+    });
   } catch (err) {
     console.warn(`  ⚠️  Gemini prompt generation failed: ${err.message}`);
     return [];
@@ -391,36 +396,63 @@ async function downloadImage(url) {
   return Buffer.from(ab);
 }
 
-/** Generate image using HuggingFace Inference API */
+/** Generate image using HuggingFace Inference API with Pollinations.ai fallback */
 async function generateImageHF(prompt, modelIndex = 0) {
-  if (modelIndex >= HF_MODELS.length) throw new Error('All HuggingFace models exhausted');
-  const model = HF_MODELS[modelIndex];
-  console.log(`  🎨  HF generating with ${model}...`);
+  // Try HuggingFace first
+  if (modelIndex < HF_MODELS.length) {
+    const model = HF_MODELS[modelIndex];
+    console.log(`  🎨  HF generating with ${model}...`);
+    try {
+      const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+        method: 'POST',
+        headers: {
+          'Authorization':    `Bearer ${HF_TOKEN}`,
+          'Content-Type':     'application/json',
+          'x-wait-for-model': 'true',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: { width: 1024, height: 1024, num_inference_steps: 4, guidance_scale: 0 },
+        }),
+      });
 
-  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-    method: 'POST',
-    headers: {
-      'Authorization':    `Bearer ${HF_TOKEN}`,
-      'Content-Type':     'application/json',
-      'x-wait-for-model': 'true',
-    },
-    body: JSON.stringify({
-      inputs: prompt,
-      parameters: { width: 1024, height: 1024, num_inference_steps: 4, guidance_scale: 0 },
-    }),
+      if (res.status === 503 || res.status === 429) {
+        console.warn(`  ⚠️  ${model} unavailable — trying next`);
+        return generateImageHF(prompt, modelIndex + 1);
+      }
+      if (!res.ok) {
+        const t = await res.text();
+        if (t.includes('loading')) return generateImageHF(prompt, modelIndex + 1);
+        throw new Error(`HF ${res.status}: ${t.slice(0, 200)}`);
+      }
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.startsWith('image/')) throw new Error(`HF returned non-image: ${ct}`);
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      if (err.message.includes('fetch failed') || err.message.includes('network')) {
+        console.warn(`  ⚠️  HF network error (${model}) — trying next model or Pollinations.ai fallback`);
+        return generateImageHF(prompt, modelIndex + 1);
+      }
+      throw err;
+    }
+  }
+
+  // Fallback: Pollinations.ai — completely free, no auth, works everywhere
+  console.log(`  🌸  Using Pollinations.ai (free fallback)...`);
+  const encodedPrompt = encodeURIComponent(prompt.slice(0, 500)); // URL length limit
+  const seed = Math.floor(Math.random() * 1000000);
+  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux`;
+
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'ProGall-AutoPipeline/2.0' },
+    signal: AbortSignal.timeout(60000), // 60-second timeout
   });
 
-  if (res.status === 503 || res.status === 429) {
-    console.warn(`  ⚠️  ${model} unavailable — trying next`);
-    return generateImageHF(prompt, modelIndex + 1);
-  }
-  if (!res.ok) {
-    const t = await res.text();
-    if (t.includes('loading')) return generateImageHF(prompt, modelIndex + 1);
-    throw new Error(`HF ${res.status}: ${t.slice(0, 200)}`);
-  }
+  if (!res.ok) throw new Error(`Pollinations.ai ${res.status}: ${await res.text().catch(() => '')}`);
   const ct = res.headers.get('content-type') || '';
-  if (!ct.startsWith('image/')) throw new Error(`HF returned non-image: ${ct}`);
+  if (!ct.startsWith('image/')) throw new Error(`Pollinations returned non-image: ${ct}`);
+
+  console.log(`  ✅  Pollinations.ai generated image`);
   return Buffer.from(await res.arrayBuffer());
 }
 
