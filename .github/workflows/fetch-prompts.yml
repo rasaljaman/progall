@@ -27,7 +27,7 @@ jobs:
       - name: Run Fetcher Script
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           DRY_RUN: 'false'
         run: node scripts/fetcher.js
