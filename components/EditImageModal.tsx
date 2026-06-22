@@ -158,7 +158,7 @@ const EditImageModal: React.FC<EditImageModalProps> = ({ image, isOpen, onClose,
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Category */}
                 <div>
                     <label className="block text-xs font-bold text-textSecondary uppercase tracking-wider mb-2">Category</label>
@@ -183,6 +183,19 @@ const EditImageModal: React.FC<EditImageModalProps> = ({ image, isOpen, onClose,
                         className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm"
                         placeholder="dark, 4k, neon..."
                     />
+                </div>
+
+                {/* Status */}
+                <div>
+                    <label className="block text-xs font-bold text-textSecondary uppercase tracking-wider mb-2">Status</label>
+                    <select
+                        value={formData.status || 'active'}
+                        onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'pending'})}
+                        className="w-full bg-background border border-surfaceHighlight rounded-lg p-3 text-textPrimary focus:border-accent outline-none text-sm h-[46px]"
+                    >
+                        <option value="active">Active (Visible)</option>
+                        <option value="pending">Pending (Review)</option>
+                    </select>
                 </div>
             </div>
 

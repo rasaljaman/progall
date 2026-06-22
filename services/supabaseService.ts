@@ -95,12 +95,19 @@ export class SupabaseService {
 
 
   // --- Data & Storage ---
-  async getImages(): Promise<ImageItem[]> {
-    const { data, error } = await supabase
+  async getImages(status?: 'active' | 'pending' | 'all'): Promise<ImageItem[]> {
+    let query = supabase
       .from('images')
       .select('*')
       .order('created_at', { ascending: false });
 
+    if (!status || status === 'active') {
+      query = query.eq('status', 'active');
+    } else if (status === 'pending') {
+      query = query.eq('status', 'pending');
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data as ImageItem[];
   }
@@ -246,7 +253,8 @@ export class SupabaseService {
       thumbnail: finalUrl,
       editorial_summary: image.editorial_summary,
       editorial_notes: image.editorial_notes,
-      editorial_tips: image.editorial_tips
+      editorial_tips: image.editorial_tips,
+      status: image.status
     }).eq('id', image.id).select().single();
 
     if (error) throw error;

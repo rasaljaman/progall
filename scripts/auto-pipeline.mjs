@@ -453,7 +453,7 @@ async function uploadAndInsert(supabase, post, buffer, enhancement) {
     tags:            enhancement.tags,
     width:           1024,
     height:          1024,
-    status:          'active',
+    status:          'pending',
     source:          post.subreddit,   // 'gemini', 'reddit', etc.
     original_source: post.permalink,
   };

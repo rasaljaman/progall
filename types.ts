@@ -16,6 +16,9 @@ export interface ImageItem {
   downloads_count?: number;
   copies_count?: number;
   views_count?: number;
+  status?: 'active' | 'pending';
+  source?: string;
+  original_source?: string;
 }
 
 export type SortOption = 'newest' | 'oldest' | 'popular';
