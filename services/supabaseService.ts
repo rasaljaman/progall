@@ -254,7 +254,9 @@ export class SupabaseService {
       editorial_summary: image.editorial_summary,
       editorial_notes: image.editorial_notes,
       editorial_tips: image.editorial_tips,
-      status: image.status
+      status: image.status,
+      author: image.author,
+      model: image.model
     }).eq('id', image.id).select().single();
 
     if (error) throw error;

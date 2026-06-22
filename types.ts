@@ -19,6 +19,8 @@ export interface ImageItem {
   status?: 'active' | 'pending';
   source?: string;
   original_source?: string;
+  author?: string;
+  model?: string;
 }
 
 export type SortOption = 'newest' | 'oldest' | 'popular';

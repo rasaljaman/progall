@@ -199,6 +199,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
           editorial_summary: item.editorial_summary || '',
           editorial_notes:   item.editorial_notes   || '',
           editorial_tips:    item.editorial_tips     || '',
+          model:             'FLUX.1-schnell',
         },
       };
     });
@@ -306,7 +307,8 @@ Given this existing AI art prompt from Civitai.com, return ONLY valid JSON (no m
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "editorial_summary": "One sentence about what makes this image visually compelling",
   "editorial_notes": "One paragraph about the artistic style and technique",
-  "editorial_tips": "One practical tip for someone who wants to remix this prompt"
+  "editorial_tips": "One practical tip for someone who wants to remix this prompt",
+  "model": "The AI model used to create this image. Guess from the prompt if not stated."
 }
 
 Original Civitai prompt: ${rawPrompt.slice(0, 800)}`
@@ -320,7 +322,8 @@ Given this Reddit AI art post, extract and enhance the image prompt. Return ONLY
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "editorial_summary": "One sentence describing what makes this image special",
   "editorial_notes": "One paragraph about the artistic technique",
-  "editorial_tips": "One practical tip for remixing this prompt"
+  "editorial_tips": "One practical tip for remixing this prompt",
+  "model": "The AI model used to create this image (e.g., Midjourney, Stable Diffusion, DALL-E, FLUX). Guess from title, body or subreddit if not explicitly stated."
 }
 
 Title: ${post.title}
@@ -356,6 +359,7 @@ Body: ${(post.body || '').slice(0, 600)}`;
       editorial_summary: parsed.editorial_summary || '',
       editorial_notes:   parsed.editorial_notes   || '',
       editorial_tips:    parsed.editorial_tips     || '',
+      model:             parsed.model             || 'Unknown',
     };
   } catch (err) {
     console.warn(`  ⚠️  Gemini failed: ${err.message}`);
@@ -381,6 +385,7 @@ function fallbackEnhancement(post) {
     editorial_summary: '',
     editorial_notes:   '',
     editorial_tips:    '',
+    model:             'Unknown',
   };
 }
 
@@ -491,6 +496,8 @@ async function uploadAndInsert(supabase, post, buffer, enhancement) {
     editorial_summary: enhancement.editorial_summary || null,
     editorial_notes:   enhancement.editorial_notes || null,
     editorial_tips:    enhancement.editorial_tips || null,
+    author:          post.author || null,
+    model:           enhancement.model || null,
   };
 
   const { error: dbErr } = await supabase.from('images').insert(row);
