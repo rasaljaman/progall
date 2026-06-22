@@ -473,9 +473,14 @@ const ImageDetail: React.FC = () => {
     handleCopy();
   };
 
-  const handleSaveEdit = async (updatedImage: ImageItem) => {
-    try { await supabaseService.updateImage(updatedImage); setImage(updatedImage); showToast('Updated successfully!'); }
-    catch { showToast('Failed to save', 'error'); }
+  const handleSaveEdit = async (updatedImage: ImageItem, newFile?: File) => {
+    try {
+      const saved = await supabaseService.updateImage(updatedImage, newFile);
+      setImage(saved);
+      showToast('Updated successfully! 🎨');
+    } catch (err: any) {
+      showToast('Failed to save: ' + (err.message || err), 'error');
+    }
   };
 
   const handleDelete = async (imgId: string) => {

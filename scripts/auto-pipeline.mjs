@@ -488,6 +488,9 @@ async function uploadAndInsert(supabase, post, buffer, enhancement) {
     status:          'pending',
     source:          post.subreddit,   // 'gemini', 'reddit', etc.
     original_source: post.permalink,
+    editorial_summary: enhancement.editorial_summary || null,
+    editorial_notes:   enhancement.editorial_notes || null,
+    editorial_tips:    enhancement.editorial_tips || null,
   };
 
   const { error: dbErr } = await supabase.from('images').insert(row);
