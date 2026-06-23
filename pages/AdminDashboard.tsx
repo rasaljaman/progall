@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Grid, Search, Edit2, Activity, Filter, BarChart3, PieChart, Users, TrendingUp, Award, Calendar, FileText, Trash2, Check, Clock } from 'lucide-react';
+import { Upload, Grid, Search, Edit2, Activity, Filter, BarChart3, PieChart, Users, TrendingUp, Award, Calendar, FileText, Trash2, Check, Clock, Inbox } from 'lucide-react';
 import { supabaseService, supabase } from '../services/supabaseService';
 import { ImageItem, AuditLog, BlogPost } from '../types';
 import { CATEGORIES, SUPER_ADMIN_EMAIL, getAdminColor } from '../constants';
 import EditImageModal from '../components/EditImageModal';
+import PendingQueue from '../components/PendingQueue';
 
 // --- TYPES FOR ANALYTICS ---
 type TimeRange = 'today' | 'week' | 'month' | 'all';
@@ -30,6 +31,7 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({ total: 0, mine: 0, team: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
 
   // Filters (Activity Tab)
@@ -88,6 +90,11 @@ const AdminDashboard: React.FC = () => {
     };
     checkUser();
     loadImages();
+    // Load pending queue count for badge
+    supabase
+      .from('pending_posts')
+      .select('id', { count: 'exact', head: true })
+      .then(({ count }) => setPendingCount(count || 0));
   }, []);
 
   // --- 2. DATA FETCHING ---
@@ -349,6 +356,14 @@ const AdminDashboard: React.FC = () => {
             <button onClick={() => setActiveTab('moderation')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'moderation' ? 'bg-yellow-500 text-black font-medium shadow' : 'text-textSecondary hover:text-yellow-400'}`}>
               <Clock size={18} /> Moderation
             </button>
+            <button onClick={() => { setActiveTab('queue'); supabase.from('pending_posts').select('id', { count: 'exact', head: true }).then(({ count }) => setPendingCount(count || 0)); }} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'queue' ? 'bg-cyan-500 text-white font-medium shadow' : 'text-textSecondary hover:text-cyan-400'}`}>
+              <Inbox size={18} /> Queue
+              {pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </span>
+              )}
+            </button>
             <button onClick={() => setActiveTab('upload')} className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'upload' ? 'bg-accent text-white font-medium shadow' : 'text-textSecondary hover:text-textPrimary'}`}>
               <Upload size={18} /> Upload
             </button>
@@ -512,6 +527,11 @@ const AdminDashboard: React.FC = () => {
               })()
             )}
           </div>
+        )}
+
+        {/* --- TAB: QUEUE (Apify + n8n Pending Posts) --- */}
+        {activeTab === 'queue' && (
+          <PendingQueue />
         )}
 
         {/* --- TAB: UPLOAD --- */}

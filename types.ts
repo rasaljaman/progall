@@ -71,3 +71,15 @@ export interface TwitterPrompt {
   created_at?: string;
 }
 
+export interface PendingPost {
+  id: string;
+  image_url: string;
+  raw_caption: string | null;
+  enhanced_prompt: string | null;
+  source_url: string | null;
+  author: string | null;
+  model: string | null;
+  created_at: string;
+}
+
+
